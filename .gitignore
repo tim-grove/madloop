@@ -7,3 +7,5 @@
 *.webm
 *.mkv
 *.zip
+.wrangler/
+node_modules/

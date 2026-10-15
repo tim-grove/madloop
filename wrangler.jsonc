@@ -1,0 +1,9 @@
+// Cloudflare's settings for madloop.madblur.com. Madloop is static files only: no Worker code runs,
+// Cloudflare just serves the folder. What it leaves out is listed in .assetsignore.
+{
+  "name": "madloop",
+  "compatibility_date": "2026-10-12",
+  "assets": { "directory": "." },
+  "workers_dev": true,
+  "preview_urls": false
+}

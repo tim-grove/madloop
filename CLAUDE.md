@@ -66,7 +66,7 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 | `assets/loop-stamp.png` | The LOOP stamp from the Figma (512×288, shown stretched to 170×68 in the header and 230×92 in About, rotated −15.67°, as designed) |
 | `assets/madblur-wordmark.svg`, `icon-*.svg` | About screen artwork from the Figma (the icons are inlined into index.html with `currentColor`) |
 | `tools/` | Test tools, never loaded by the page: `serve.py`, `test-helpers.js`, `unpack-lab-clips.py` |
-| `_headers` | Response headers for Cloudflare Pages |
+| `_headers`, `wrangler.jsonc`, `.assetsignore` | Cloudflare: response headers, deploy settings, what stays off the site |
 | `.claude/launch.json` | The two local servers (8411 Madloop, 8412 test clips); gitignored |
 
 ## How it works
@@ -125,9 +125,12 @@ Every build (any change Tim will see), not just public releases:
 3. Add a `## Build N — date` entry to `CHANGELOG.md`.
 4. Test (below), then commit when Tim says so.
 
-Hosting: Cloudflare Pages connected to the GitHub repo, at madloop.madblur.com (madblur.com is
-already on Cloudflare). Static files: no framework, no build command, output directory `/` (the
-repo root). A push to `main` redeploys. `_headers` sets the response headers, as madblur.com's does.
+Hosting: a Cloudflare Worker (static assets only, no Worker code) connected to the GitHub repo,
+at madloop.madblur.com (madblur.com is already on Cloudflare); also
+madloop.wild-dream-6de6.workers.dev. A push to `main` redeploys (`npx wrangler deploy`).
+`wrangler.jsonc` is its settings; `.assetsignore` keeps `.git`, `tools/`, `CLAUDE.md` and the
+config files off the site (the first deploy, without it, published `.git`); `_headers` sets the
+response headers, as madblur.com's does.
 
 ## Testing
 
@@ -161,7 +164,7 @@ Windows if possible. **So far only Chrome on a Mac has been tested.**
 - Visitor: `fonts/Visitor-README.txt` quotes Brian Kent's terms; swap in his original readme file
   if Tim has the font zip.
 - Test Safari, Firefox and Windows; test an HEVC file that needs the lead fix.
-- Cloudflare Pages: connect the repo and add madloop.madblur.com (Tim, in the dashboard).
+- Cloudflare: add the custom domain madloop.madblur.com to the Worker (Tim, in the dashboard).
 - Later: ProRes needs a Mac app with a Swift helper (AVFoundation); not possible on the web.
 
 ## Back to Madblur (ideas Tim may cherry-pick)
