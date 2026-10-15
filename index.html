@@ -7,7 +7,7 @@
 <meta name="description" content="Turn any video clip into a seamless loop. Free, open source, and nothing leaves your computer.">
 <!-- ?v= is the build number (BUILD in app.js). Raise all three with it on every build, so no browser
      pairs this page with an old copy of a file. See CLAUDE.md, "Releasing". -->
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div id="app">
@@ -52,7 +52,12 @@
     </div>
 
     <div class="panel" data-panel="export">
-      <h4>Video</h4>
+      <h4>Resize</h4>
+      <div class="row"><label>Preset</label><span id="sizePreset" class="rslot"></span></div>
+      <div class="row"><label>Resolution</label>
+        <input type="text" id="resW" class="resin" aria-label="Width in pixels"><span class="resx">×</span>
+        <input type="text" id="resH" class="resin" aria-label="Height in pixels"><span class="resx">px</span></div>
+      <h4 class="xgap">Video</h4>
       <button class="xbtn" id="exportH265Btn" type="button"><span class="xi"><svg width="22.5" height="13.5" viewBox="0 0 22.5 13.5" aria-hidden="true"><path d="M16.5 1.5V12C16.5 12.3978 16.342 12.7794 16.0607 13.0607C15.7794 13.342 15.3978 13.5 15 13.5H1.5C1.10218 13.5 0.720644 13.342 0.43934 13.0607C0.158035 12.7794 0 12.3978 0 12V1.5C0 1.10218 0.158035 0.720644 0.43934 0.43934C0.720644 0.158035 1.10218 0 1.5 0H15C15.3978 0 15.7794 0.158035 16.0607 0.43934C16.342 0.720644 16.5 1.10218 16.5 1.5ZM21.9375 1.52344C21.8317 1.49755 21.7216 1.49435 21.6145 1.51406C21.5073 1.53378 21.4056 1.57595 21.3159 1.63781L18.1669 3.73688C18.1155 3.77115 18.0734 3.81758 18.0443 3.87204C18.0152 3.9265 18 3.98731 18 4.04906V9.45094C18 9.51269 18.0152 9.5735 18.0443 9.62796C18.0734 9.68242 18.1155 9.72885 18.1669 9.76312L21.3337 11.8744C21.4523 11.9534 21.5909 11.9971 21.7333 12.0003C21.8758 12.0034 22.0162 11.9659 22.1381 11.8922C22.2509 11.8205 22.3434 11.721 22.4068 11.6033C22.4702 11.4856 22.5022 11.3536 22.5 11.22V2.25C22.5001 2.08366 22.4449 1.92202 22.343 1.79049C22.2412 1.65897 22.0986 1.56502 21.9375 1.52344Z"/></svg></span><span class="xl">Export .MP4 H.265</span></button>
       <button class="xbtn" id="exportVidBtn" type="button"><span class="xi"><svg width="22.5" height="13.5" viewBox="0 0 22.5 13.5" aria-hidden="true"><path d="M16.5 1.5V12C16.5 12.3978 16.342 12.7794 16.0607 13.0607C15.7794 13.342 15.3978 13.5 15 13.5H1.5C1.10218 13.5 0.720644 13.342 0.43934 13.0607C0.158035 12.7794 0 12.3978 0 12V1.5C0 1.10218 0.158035 0.720644 0.43934 0.43934C0.720644 0.158035 1.10218 0 1.5 0H15C15.3978 0 15.7794 0.158035 16.0607 0.43934C16.342 0.720644 16.5 1.10218 16.5 1.5ZM21.9375 1.52344C21.8317 1.49755 21.7216 1.49435 21.6145 1.51406C21.5073 1.53378 21.4056 1.57595 21.3159 1.63781L18.1669 3.73688C18.1155 3.77115 18.0734 3.81758 18.0443 3.87204C18.0152 3.9265 18 3.98731 18 4.04906V9.45094C18 9.51269 18.0152 9.5735 18.0443 9.62796C18.0734 9.68242 18.1155 9.72885 18.1669 9.76312L21.3337 11.8744C21.4523 11.9534 21.5909 11.9971 21.7333 12.0003C21.8758 12.0034 22.0162 11.9659 22.1381 11.8922C22.2509 11.8205 22.3434 11.721 22.4068 11.6033C22.4702 11.4856 22.5022 11.3536 22.5 11.22V2.25C22.5001 2.08366 22.4449 1.92202 22.343 1.79049C22.2412 1.65897 22.0986 1.56502 21.9375 1.52344Z"/></svg></span><span class="xl">Export .MP4 H.264</span></button>
       <h4 class="xgap">Image</h4>
@@ -77,12 +82,6 @@
         <div class="ticks" id="tlTicks"></div>
         <div id="tlHead"><svg viewBox="0 0 9.52628 34.5" aria-hidden="true"><g> <rect x="4.2631" y="0.500001" width="1" height="34" fill="#D9D9D9"/> <path d="M4.76314 7.5L2.98003e-07 8.32814e-07L9.52628 0L4.76314 7.5Z" fill="#D9D9D9"/> </g></svg></div>
       </div>
-      <div class="tlcell"><span class="tlcl">Zoom</span><select id="vpZoom" title="Viewport zoom (display only, doesn't change the export)">
-        <option value="fit">Fit</option><option value="0.25">25%</option><option value="0.5">50%</option><option value="1">100%</option><option value="2">200%</option>
-      </select></div>
-      <div class="tlcell"><span class="tlcl">Quality</span><select id="vpQuality" title="Preview quality. Lower is smoother on big clips. Exports are always full quality.">
-        <option value="1">Full</option><option value="0.5">Half</option><option value="0.25">QTR</option>
-      </select></div>
     </div>
     <div id="pong">
       <canvas id="pongCv" width="480" height="300"></canvas>
@@ -117,7 +116,7 @@
 <div id="mbToast"></div>
 
 <script src="vendor/mediabunny-1.61.0.min.js"></script>
-<script src="pong.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="pong.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

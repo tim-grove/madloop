@@ -16,7 +16,7 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 4, BUILD_DATE = '2026-10-16';
+const BUILD = 5, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
   github:    'https://github.com/tim-grove/madloop',
@@ -33,7 +33,7 @@ const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 
 /* ═════════════════════════════ STATE ═════════════════════════════
    The names follow Madblur's Media layer so the loop maths reads the same in both. */
-const doc = { loopSeconds:30, fps:30 };
+const doc = { loopSeconds:30, fps:30, outW:0 };   // outW: the export's width from Resize; 0 = the clip's own size
 const P = { secIn:0, secOut:0, secAuto:1, loops:0, nlSpeed:100, nlFit:0, loopMode:3, ease:0, holdAt:0,
             pat:2, patDir:0, patShape:1, patCount:1, patRev:0, patSeed:1, patScale:100, patDetail:50, patSoft:35, xf:18 };
 let clip = null;            // the imported clip: { blob, name, size, w, h, dur, t0, srcFps, codec, label, rotation }
@@ -414,19 +414,15 @@ function present(){
   view.R.draw(view.texA, view.texB, b.xf, b.xr);
 }
 
-/* The preview canvas: the clip's shape, fitted to the stage (Zoom), drawn at the screen's
-   resolution or the clip's, whichever is smaller (Quality scales that down). */
-let _zoom = 'fit', _quality = 1;
+/* The preview canvas: the clip's shape, fitted to the stage, drawn at the screen's resolution or
+   the clip's, whichever is smaller. (Zoom and Quality were dropped, Tim 2026-10-16: always Fit.) */
 function layoutView(){
   if(!clip) return;
   const box = $('#view'), cv = view.cv; if(!box) return;
   const bw = box.clientWidth-36, bh = box.clientHeight-36, dpr = window.devicePixelRatio||1;
-  let cw, ch;
-  if(_zoom==='fit'){ const s=Math.min(bw/clip.w, bh/clip.h); cw=clip.w*s; ch=clip.h*s; }
-  else { cw=clip.w*(+_zoom)/dpr; ch=clip.h*(+_zoom)/dpr; }
-  cw=Math.max(16,Math.round(cw)); ch=Math.max(16,Math.round(ch));
+  const fit=Math.min(bw/clip.w, bh/clip.h), cw=Math.max(16,Math.round(clip.w*fit)), ch=Math.max(16,Math.round(clip.h*fit));
   if(cv.style.width!==cw+'px'){ cv.style.width=cw+'px'; cv.style.height=ch+'px'; }
-  const s = Math.min(1, (cw*dpr)/clip.w) * _quality;
+  const s = Math.min(1, (cw*dpr)/clip.w);
   const pw = Math.max(16, Math.round(clip.w*s)), ph = Math.max(16, Math.round(clip.h*s));
   if(cv.width!==pw || cv.height!==ph){ cv.width=pw; cv.height=ph; }
 }
@@ -552,13 +548,13 @@ async function importFile(file){
 
     if(clip && clip.url) URL.revokeObjectURL(clip.url);
     clip = { file, blob, url, name, size:file.size, w, h, dur, t0, srcFps, codec, rotation, hdr };
-    doc.fps = niceFps(srcFps);
+    doc.fps = niceFps(srcFps); doc.outW = 0;
     Object.assign(P, { secIn:0, secOut:0, secAuto:1, loops:0, nlSpeed:100, nlFit:0 });
     tNow = 0;
     stripMake();
     rcReset(); animStart(url);
     showClip();
-    renderLooping(); tlBuildTicks(); exportInfo();
+    renderLooping(); renderSize(); tlBuildTicks(); exportInfo();
     $('#drop').style.display='none'; document.body.classList.add('hasclip');
     if(hdr) toast('This is an HDR clip. Madloop exports in standard range, so bright colours may look flatter.');
   }catch(e){
@@ -659,11 +655,6 @@ function selectRow(label, value, options, onChange, omit){
   const r=el('div',{className:'row'});
   r.append(el('label',{textContent:label}), pickButton(options, value|0, onChange, omit));
   return r;
-}
-// a native <select> driven through the pick menu (the timeline's Zoom / Quality)
-function dressSelect(sel){
-  const btn=pickButton([...sel.options].map(o=>o.textContent), sel.selectedIndex, i=>{ sel.selectedIndex=i; sel.dispatchEvent(new Event('change')); });
-  sel.style.display='none'; sel.after(btn);
 }
 // the 96×24 value box: − / typed value / +
 function stepper(value, onChange, min, max, dp){
@@ -923,16 +914,18 @@ function tick(now){
      each decoded forward from its keyframe into a small pool of textures and then handed out
      in reverse.
    Memory stays at a few frames, whatever the clip or the export length. */
-async function* serveFrames(R, track, times, pool){
+async function* serveFrames(R, track, times, pool, W, H, scaled){
   // times: clip seconds per output frame (null = this stream isn't needed then).
   const sink = new MB.VideoSampleSink(track);
   // A phone's portrait clip is stored sideways with a "turn this" tag. The GPU upload ignores
   // the tag, so a turned frame is drawn the right way up first (Mediabunny's draw honours it).
-  // HDR frames take the same route, for the colour reason in makeRenderer's upload.
+  // HDR frames take the same route, for the colour reason in makeRenderer's upload, and so do
+  // resized ones: the 2D canvas scales down smoothly, where the GPU's plain sampling would shimmer.
   let flat=null;
   const up = (tex, s)=>{
-    if(s.rotation || s.flip || clip.hdr){
-      if(!flat){ flat=new OffscreenCanvas(s.displayWidth, s.displayHeight); flat.ctx=flat.getContext('2d'); }
+    if(s.rotation || s.flip || clip.hdr || scaled){
+      if(!flat){ flat=new OffscreenCanvas(scaled ? W : s.displayWidth, scaled ? H : s.displayHeight); flat.ctx=flat.getContext('2d');
+        flat.ctx.imageSmoothingEnabled=true; flat.ctx.imageSmoothingQuality='high'; }
       s.draw(flat.ctx, 0, 0, flat.width, flat.height); R.upload(tex, flat); return; }
     const vf=s.toVideoFrame(); try{ R.upload(tex, vf); } finally { vf.close(); } };
   let i=0; const n=times.length;
@@ -965,7 +958,37 @@ async function* serveFrames(R, track, times, pool){
     i=j;
   }
 }
-function exportSize(){ return { W: clip.w - (clip.w&1), H: clip.h - (clip.h&1) }; }   // the encoders need even sizes
+/* The export's size: the clip's own, or Resize's width with the clip's shape. Never larger than the
+   clip (scaling up adds nothing) and always even, as the encoders need. */
+function exportSize(outW){
+  const ev=n=>Math.max(16, n-(n&1)), w=outW==null ? doc.outW : outW;
+  if(!(w>0) || w>=clip.w-1) return { W: ev(clip.w), H: ev(clip.h), scaled:false };
+  return { W: ev(Math.round(w)), H: ev(Math.round(w*clip.h/clip.w)), scaled:true };
+}
+// Resize's presets: the clip's own size, then the common sizes below it, by the short side.
+function sizePresets(){
+  const s0=Math.min(clip.w, clip.h), o=[{ w:0, label:'Original' }];
+  for(const x of [2160,1440,1080,720,540,360]) if(x<s0-1){ const w=clip.w*x/s0, z=exportSize(w); o.push({ w, label:z.W+' × '+z.H }); }
+  return o;
+}
+function renderSize(){
+  const slot=$('#sizePreset'), rW=$('#resW'), rH=$('#resH'); slot.innerHTML='';
+  rW.disabled=rH.disabled=!clip;
+  if(!clip){ rW.value=rH.value=''; const b=pickButton(['Original'], 0, ()=>{}); b.disabled=true; slot.appendChild(b); return; }
+  const ps=sizePresets(), z=exportSize();
+  let cur=ps.findIndex(p=>{ const q=exportSize(p.w); return q.W===z.W && q.H===z.H; });
+  const labels=ps.map(p=>p.label).concat('Custom'); if(cur<0) cur=labels.length-1;
+  slot.appendChild(pickButton(labels, cur, i=>{ if(i<ps.length){ doc.outW=ps[i].w; renderSize(); exportInfo(); } }, [labels.length-1]));
+  rW.value=z.W; rH.value=z.H;
+}
+function initSize(){
+  const set=(v, side)=>{ v=Math.round(+v);
+    if(clip && isFinite(v) && v>0) doc.outW = side==='w' ? Math.min(v, clip.w) : Math.min(v, clip.h)*clip.w/clip.h;
+    renderSize(); exportInfo(); };
+  $('#resW').onchange=()=>set($('#resW').value, 'w');
+  $('#resH').onchange=()=>set($('#resH').value, 'h');
+  renderSize();
+}
 function exportTimes(N){
   const a=[], b=[], ws=[], rs=[], E=1e-4;   // E: aim just inside each frame, so rounding never lands on the frame before
   for(let i=0;i<N;i++){ const ct=mediaClipTimes(P, clip, i/N);
@@ -982,20 +1005,21 @@ async function detectEncoders(){
   if(!window.showDirectoryPicker) $('#exportDirBtn').style.display='none';
   exportInfo();
 }
-function expLock(on){ document.querySelectorAll('.xbtn').forEach(b=>{ b.disabled = on || !clip || b.dataset.never==='1'; }); }
+function expLock(on){ document.querySelectorAll('.xbtn').forEach(b=>{ b.disabled = on || !clip || b.dataset.never==='1'; });
+  document.querySelectorAll('#resW, #resH, #sizePreset .pickbtn').forEach(b=>{ b.disabled = on || !clip; }); }
 function exportInfo(){
   const n=$('#expN'); if(n) n.textContent=frameCount();
   const info=$('#exportInfo'); expLock(_exporting);
   if(!clip){ info.textContent='Import a clip first.'; return; }
-  const {W,H}=exportSize(), N=frameCount();
+  const {W,H,scaled}=exportSize(), N=frameCount();
   const mb=Math.round(W*H*doc.fps*0.12*doc.loopSeconds/8/1048576);   // roughly what QUALITY_HIGH comes to
-  info.innerHTML='<b>'+doc.loopSeconds+' s</b> · '+N+' frames · '+W+' × '+H+' · '+fmtFps(doc.fps)+' · no sound. As H.264, about '+mb+' MB. '
+  info.innerHTML='<b>'+doc.loopSeconds+' s</b> · '+N+' frames · '+W+' × '+H+(scaled ? ' (resized)' : '')+' · '+fmtFps(doc.fps)+' · no sound. As H.264, about '+mb+' MB. '
     +(window.showSaveFilePicker ? 'You choose where it goes and it is written as it renders.' : 'This browser builds the file in memory first, so a very long 4K export may not fit; Chrome and Edge write straight to disk.');
 }
 function baseName(){ return (clip.name.replace(/\.[^.]+$/,'')||'clip').replace(/[^\w\- ]+/g,'').slice(0,60)+'_loop'; }
 async function runExport(kind){
   if(!clip || _exporting) return;
-  const N=frameCount(), fps=doc.fps, {W,H}=exportSize();
+  const N=frameCount(), fps=doc.fps, {W,H,scaled}=exportSize();
   const isVid = kind==='h264' || kind==='h265';
   const name = baseName()+'_'+W+'x'+H+(isVid ? (kind==='h265'?'_h265':'')+'.mp4' : '_'+N+'f');
   // where it goes: picked first, so a cancelled picker costs nothing
@@ -1029,7 +1053,7 @@ async function runExport(kind){
     const ts=exportTimes(N);
     const K=Math.max(2, Math.min(24, Math.floor(512*1048576/(W*H*4))));   // backward windows: about half a gigabyte of frames at most
     const poolA=Array.from({length:K}, ()=>R.newTex()), poolB=Array.from({length:K}, ()=>R.newTex());
-    const sA=serveFrames(R, track, ts.a, poolA), sB=serveFrames(R, track, ts.b, poolB);
+    const sA=serveFrames(R, track, ts.a, poolA, W, H, scaled), sB=serveFrames(R, track, ts.b, poolB, W, H, scaled);
     let source=null, target=null;
     if(isVid){
       target = writable ? new MB.StreamTarget(writable, {chunked:true}) : new MB.BufferTarget();
@@ -1165,10 +1189,7 @@ function boot(){
   $('#exportDirBtn').onclick=()=>runExport('pngdir');
   $('#exportBtn').onclick=()=>runExport('pngzip');
   $('#exportCancel').onclick=exportCancel;
-  // timeline cells
-  for(const id of ['vpZoom','vpQuality']) dressSelect($('#'+id));
-  $('#vpZoom').onchange=()=>{ _zoom=$('#vpZoom').value; viewBox.classList.toggle('zoomed', _zoom!=='fit'); invalidate(); };
-  $('#vpQuality').onchange=()=>{ _quality=+$('#vpQuality').value; invalidate(); };
+  initSize();
   initTimeline();
   renderLooping();
   // phones and small screens get a word first

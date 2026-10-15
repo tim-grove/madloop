@@ -27,7 +27,8 @@ slowed down to fit. Only your own drag ever changes the section.
 - **MP4, H.265**: smaller files. Shown only where your browser can encode it.
 - **PNG sequence**: into a folder you pick (Chrome and Edge), or as a .zip.
 
-Exports are at the clip's full resolution and have no sound. In Chrome and Edge the file is
+Exports are at the clip's full resolution unless you pick a smaller size under **Resize**, and
+have no sound. In Chrome and Edge the file is
 written to disk as it renders, so length and size are limited only by your disk. Other browsers
 build the file in memory first, which caps it at what the browser will hold (a gigabyte or two).
 

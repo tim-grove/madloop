@@ -459,11 +459,9 @@ body:not(.hasclip) #gl{visibility:hidden}
 .ins .pblock{margin:16px 0 0}
 .ins .row .pickbtn{flex:1 1 100%}
 #secBox .msec{margin-top:10px}
-/* the stage: the preview sits in a view that scrolls when zoomed, above the docked timeline */
+/* the stage: the preview sits in a view above the docked timeline, always fitted */
 #stage{padding:0}
 #view{position:absolute;left:0;right:0;top:0;bottom:40px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-#view.zoomed{overflow:auto;display:block;padding:18px}
-#view.zoomed canvas{margin:auto;display:block}
 #gl{display:block;flex:none}
 #drop{position:absolute;left:18px;right:18px;top:18px;bottom:58px;z-index:10;display:flex;align-items:center;justify-content:center;
   border:1px dashed var(--line-dim);color:var(--chrome);cursor:pointer;text-align:center;font:400 13px 'Geist',system-ui,sans-serif}
@@ -478,3 +476,12 @@ body.dragging #drop span{visibility:hidden}
 #phone b{display:block;font:500 16px 'IBM Plex Mono',ui-monospace,monospace;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
 body.phone #phone{display:flex}
 @media (max-width:760px){ #app{grid-template-columns:1fr;grid-template-rows:auto 60vh;height:auto;min-height:100vh} #left{overflow:visible} #stage{min-height:60vh} }
+/* Export › Resize (Madblur's Project › Canvas rows: Preset, then Resolution W × H px). The shape is
+   the clip's: typing one side sets the other. */
+.panel[data-panel="export"] .row{margin:0 0 12px}
+.panel[data-panel="export"] .rslot{display:flex;flex:0 0 200px}   /* as wide as the W × H px cluster below, so both line up */
+.panel[data-panel="export"] .rslot .pickbtn{flex:1 1 auto}
+.panel[data-panel="export"] .row input.resin{flex:none;width:76px;padding:0;text-align:center;font-family:'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.panel[data-panel="export"] .row input.resin:disabled,.panel[data-panel="export"] .rslot .pickbtn:disabled{opacity:.35;cursor:default}
+.resx{flex:none;width:10px;text-align:center;color:var(--dim);font:400 12px 'Geist',system-ui,sans-serif}
+.resx:last-child{width:14px;text-align:right}

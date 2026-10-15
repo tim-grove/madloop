@@ -38,7 +38,9 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 
 - Timeline 30 s by default; **Loop seconds** is adjustable and the export is that long.
 - Exports are **silent**. H.264 MP4, H.265 MP4 (only where the browser can encode it), PNG
-  sequence (folder in Chrome/Edge, else .zip). Full source resolution. No watermark.
+  sequence (folder in Chrome/Edge, else .zip). No watermark. Full source resolution by default;
+  **Resize** on the Export tab (Preset + Resolution W × H, Madblur's Canvas rows) scales down only,
+  keeping the clip's shape (`doc.outW`, 0 = original; reset on each import).
 - Tabs: **Loop** (clip controls above the looping controls), **Export**, **About** (Tim's Figma
   MadBlur 464:1165: a 570px black box with a 2px Madblur-orange border over a dark overlay; the
   Madblur wordmark with the LOOP stamp, the build, three short paragraphs, link columns GitHub /
@@ -49,7 +51,8 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 - Header exactly as the Figma, including "MADBLUR VISUAL SYNTHESIZER": "This is style my friend".
 - Methods: No loop, Bounce, Crossfade (default), Patterned dissolve. **Removed, do not bring back:**
   Hold frame, Speed fit, Match cut, Fade through, demo clips, the "Made by…" footer, the
-  explanatory hints under the clip and the method.
+  explanatory hints under the clip and the method, the timeline's Zoom and Quality menus (the
+  preview always fits, at full quality).
 - Desktop first: phones get "works best on a computer" with "Try it anyway".
 - Licence MIT for the code; the names Madloop/Madblur and their artwork stay Tim's.
 
@@ -97,7 +100,8 @@ stream (A, and B for dissolves) is cut into monotonic stretches. Forward stretch
 through (`samplesAtTimestamps`); backward stretches are cut into windows of K frames (K sized to
 ~512 MB of frames, 2–24), each decoded forward and handed out reversed. Frames go to the GPU,
 are blended, then to Mediabunny's `CanvasSource` (H.264/H.265 at `QUALITY_HIGH`, keyframe every
-2 s) or `canvas.toBlob` (PNG). Chrome/Edge: `showSaveFilePicker` + `StreamTarget`, written as it
+2 s) or `canvas.toBlob` (PNG). A resized export draws each frame into a 2D canvas at the output size
+(`imageSmoothingQuality` high) before the GPU, since plain GPU sampling shimmers when scaling down. Chrome/Edge: `showSaveFilePicker` + `StreamTarget`, written as it
 renders. Other browsers: `BufferTarget` in memory, then Pong's Download button. PNG .zip refuses
 when it would pass ~1.6 GB. Timestamps get +0.1 ms so rounding never lands on the frame before.
 

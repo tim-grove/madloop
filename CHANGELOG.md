@@ -2,6 +2,12 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 5 — 2026-10-16
+
+- Export: Resize, with a Preset menu (Original and the common sizes below it) and Resolution W × H. Starts at the clip's own size; keeps the clip's shape; never scales up.
+- Resized frames are scaled in a 2D canvas at high quality before the blend, so fine detail doesn't shimmer.
+- The timeline's Zoom and Quality menus are gone: the preview always fits the stage, at full quality.
+
 ## Build 4 — 2026-10-16
 
 - About: the GitHub link points at github.com/tim-grove/madloop.
