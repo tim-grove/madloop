@@ -1,0 +1,480 @@
+/* Madloop — the skin is Madblur's (build 458), copied rule for rule so the two tools look like one
+   family. Madloop's own additions are at the end of the file. */
+  :root{
+    /* ── THEME TOKENS (build 231) — the single source for the skin's palette. Every colour the
+       chrome uses resolves through these, so a UI theme (build 232) is nothing but an override
+       of this block via html[data-mbtheme]. The values ARE the shipped Madblur look. ── */
+    --chrome:#D8D8D8;     /* primary chrome: borders, control text, rails, paddles */
+    --chrome-b:#F2F2F2;   /* brighter chrome: emphasised text, menu headers */
+    --bg0:#181717;        /* deep panel dark (aliased by --panel/--row/--dark below) */
+    --bg1:#26241F;        /* wells: fields, menus, buttons */
+    --bg00:#101010;       /* darkest: letterboxes, thumbnails */
+    --line-dim:#3F3C3C;   /* quiet hairlines / separators */
+    --gold:#E4CD5C;       /* THE accent: looping badge, selection ticks, notices */
+    --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 8'%3E%3Cpath d='M14.8002 1.13858L7.98236 7.8045C7.91904 7.86648 7.84385 7.91564 7.76108 7.94919C7.67831 7.98273 7.5896 8 7.5 8C7.4104 8 7.32168 7.98273 7.23892 7.94919C7.15615 7.91564 7.08096 7.86648 7.01764 7.8045L0.199801 1.13858C0.0718705 1.0135 0 0.843852 0 0.666963C0 0.490073 0.0718705 0.320428 0.199801 0.195349C0.327731 0.0702687 0.501242 0 0.682163 0C0.863084 0 1.03659 0.0702687 1.16452 0.195349L7.5 6.39049L13.8355 0.195349C13.8988 0.133415 13.974 0.0842872 14.0568 0.0507692C14.1395 0.0172512 14.2283 0 14.3178 0C14.4074 0 14.4961 0.0172512 14.5789 0.0507692C14.6617 0.0842872 14.7369 0.133415 14.8002 0.195349C14.8635 0.257282 14.9138 0.330807 14.9481 0.411727C14.9824 0.492647 15 0.579376 15 0.666963C15 0.75455 14.9824 0.841279 14.9481 0.922198C14.9138 1.00312 14.8635 1.07664 14.8002 1.13858Z'/%3E%3C/svg%3E");   /* b423: THE dropdown chevron (the Colours-preset vector, drawn 15x8), used as a mask by every .chev */
+    --plate:#697B8C;      /* slate plates: tabs, section headers */
+    --cat-gen:#0A50C7;    /* node category: generator  (blue)    */
+    --cat-proc:#20857A;   /* node category: processor  (teal)    */
+    --cat-dist:#BB57A8;   /* node category: distorter  (magenta) */
+    --bg:#000;            /* app surround / canvas backdrop */
+    --pboard:#181717;     /* b413: the pasteboard around the canvas (and the letterbox of a layer preview) */
+    --panel:var(--bg0);      /* side panels (warm near-black) */
+    --panel2:var(--bg1);     /* wells: fields, dropdowns, LFO panels, wave boxes */
+    --well:var(--bg1);
+    --line:#b7b1a3;       /* THE signature: text, hairline borders, slider rails */
+    --ink:#b7b1a3;
+    --text:#b7b1a3;
+    --dim:#8f897b;        /* quieter ink for hints / secondary */
+    --accent:#334fda;     /* selection + primary action (vivid blue slider fill) */
+    --accent2:#d56868;    /* active mute / warm alert */
+    --lfo:#d87ee9;        /* LFO purple (matches the reach-band) */
+    --mute:#d56868;
+    --solo:#dcde8a;
+    --mute-on:#FD8CA4;    /* lit MUTE pill on a layer card (build 238: token so themes can re-ink it) */
+    --solo-on:#D9FF9C;    /* lit SOLO pill */
+    --dark:var(--bg0);       /* dark text on bright (inverted) fills */
+    --row:var(--bg0); --rowsel:#211f1b;
+    /* module category accents (card bg / label ink) */
+    --proc-bg:#1b3045; --proc-ink:#5b86b1; --proc-sel:#9fc5eb;
+    --dist-bg:#822c1b; --dist-ink:#d29083; --dist-sel:#f3c9c1;
+    --gen-bg:#665823;  --gen-ink:#b4a56c;  --gen-sel:#e8d899;   /* selected-row highlight tints */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:13px/1.4 'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;user-select:none;
+    -webkit-font-smoothing:antialiased}
+  button,select,input,textarea{font:inherit;color:inherit}
+  input,textarea{user-select:text}
+  aside{background:var(--panel);overflow:auto;display:flex;flex-direction:column}
+  #left{border-right:1px solid var(--line-dim);overflow:hidden}   /* the aside itself never scrolls; the layer LIST does */
+  ::selection{background:var(--ink);color:var(--dark)}
+  /* thin, on-brand scrollbars */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line-dim);border:2px solid var(--panel)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--chrome)}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  #stage{position:relative;display:flex;align-items:center;justify-content:center;background:var(--pboard);padding:18px 18px 58px;overflow:hidden}   /* b413 (Tim): the pasteboard is a hair off black so a black canvas reads against it */
+  canvas{max-width:100%;max-height:100%;background:#000;border-radius:0}   /* b430 (Tim): the viewport canvas casts no drop shadow */
+  #pong{position:absolute;inset:0;z-index:80;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(24,23,23,.94)}   /* build 244: cursor stays visible — paddle follows it anyway, and the buttons are findable */
+  #pong.on{display:flex}
+  #pong canvas{border:1px solid var(--chrome);background:var(--bg0);width:min(560px,78%);aspect-ratio:8/5;touch-action:none;cursor:crosshair}
+  #pong .pgwrap{width:min(560px,78%)}
+  #pong .pgbar{height:14px;border:1px solid var(--chrome);background:var(--bg1);position:relative}
+  #pong .pgbar .fill{position:absolute;top:0;left:0;bottom:0;width:0%;background:var(--chrome)}
+  #pong .pgtxt{display:flex;justify-content:space-between;gap:12px;margin-top:6px;
+    font:400 12px 'IBM Plex Mono',ui-monospace,monospace;color:var(--chrome);letter-spacing:1px}
+  #pong .pgtxt .dim{color:var(--dim)}
+  #pong .pghint{font:400 11px 'IBM Plex Mono',ui-monospace,monospace;color:var(--dim);letter-spacing:1px}
+  #pong #pongCancel{cursor:pointer;font:400 12px 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:1px;
+    color:var(--chrome);background:var(--bg1);border:1px solid var(--chrome);padding:6px 14px}
+  #pong #pongCancel:hover{background:var(--chrome);color:var(--bg0)}
+  /* build 240: render complete — the cancel button becomes the gold DOWNLOAD button */
+  #pong #pongCancel.dl{background:var(--gold);border-color:var(--gold);color:#000;font-weight:600}
+  #pong #pongCancel.dl:hover{filter:brightness(1.08);background:var(--gold);color:#000}
+  /* ── Viewport timeline ── */
+  /* Timeline (build 163, lab piece 4) — the designed 40px transport bar: three bordered 40x40
+     buttons (their tiles carry their own border, overlapping the bar's), the black 7-seg readout
+     (yellow border), and the tick rail with the Figma playhead.
+     b422 (Tim, tools/timeline-lab.html): the bar is DOCKED along the base of the viewport instead
+     of floating over the canvas, and carries Zoom and Quality as two menus at its right end (the
+     floating Zoom / Quality box and the hide / show buttons are gone). The rail is a ruler:
+     seconds numbered, each number centred over its tick, just under the playhead's cap. */
+  #timeline{position:absolute;left:0;right:0;bottom:0;z-index:56;display:flex;align-items:center;
+    height:40px;background:var(--panel);border:1px solid var(--chrome);border-radius:0;padding:0;user-select:none}
+  #timeline .tbtn{flex:none;position:relative;width:40px;height:40px;margin:-1px 0 -1px -1px;background:none;border:0;padding:0;cursor:pointer}
+  #timeline .tbtn span{position:absolute;left:0;top:0;width:40px;height:40px}
+  #timeline .tbtn svg{position:absolute;left:0;top:0;width:40px;height:40px;display:block}
+  #timeline .tbtn:hover{filter:brightness(1.35)}
+  #timeline .tpPause{display:none}
+  #timeline.playing .tpPause{display:block}
+  #timeline.playing .tpPlay{display:none}
+  #tlTrack{position:relative;flex:1;height:38px;cursor:pointer;margin:0 16px}
+  #tlTrack .rail{position:absolute;left:0;right:0;top:27px;height:2px;background:#D9D9D9;overflow:hidden}
+  #tlTrack .fill{position:absolute;left:0;top:0;bottom:0;background:var(--cat-gen)}
+  #tlTrack .ticks{position:absolute;left:0;right:0;top:0;height:38px;pointer-events:none}
+  #tlTrack .tick{position:absolute;top:23px;width:1px;height:10px;background:rgba(217,217,217,.5)}
+  #tlTrack .tick.min{top:25px;height:6px;background:rgba(217,217,217,.28)}
+  /* the number paints above the playhead's hairline, so a number the playhead stands on stays readable */
+  #tlTrack .tlab{position:absolute;top:10px;transform:translateX(-50%);padding:0 2px;background:var(--panel);z-index:1;
+    font:400 10px/11px 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--dim);white-space:nowrap}
+  #tlHead{position:absolute;top:1px;width:10px;margin-left:-5px;pointer-events:none}
+  #tlHead svg{display:block;width:9.53px;height:34.5px}
+  #tlRead{flex:none;position:relative;width:96px;height:40px;margin:-1px 0 -1px -1px;background:#000;border:1px solid var(--gold)}
+  #tlRead .fr{position:absolute;left:0;top:1px;width:94px;height:18px;display:flex;align-items:center;justify-content:center;
+    font:500 14px 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.56px;color:var(--gold)}
+  #tlRead .tc,#tlRead .tcg{position:absolute;right:3px;top:17px;width:93px;height:20px;text-align:right;
+    font:italic 700 17px/20px DSEG7}
+  #tlRead .tcg{color:var(--mbh-ghost)}
+  #tlRead .tc{color:var(--gold)}
+  /* b422: Zoom / Quality cells — a small label over the skin's pick-button, which fills the cell */
+  #timeline .tlcell{flex:none;position:relative;width:96px;height:40px;margin:-1px 0;border:1px solid var(--chrome);background:var(--panel)}
+  #timeline .tlcell+.tlcell{width:128px;margin:-1px -1px -1px -1px}   /* Quality: room for "Auto Half" (b423: Quarter reads QTR; Zoom is 96, room for "3200%") */
+  #timeline .tlcl{position:absolute;left:6px;top:3px;z-index:1;font:500 10px/12px 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:1px;
+    color:var(--dim);text-transform:uppercase;pointer-events:none}
+  #timeline .tlcell .pickbtn{position:absolute;left:0;top:0;width:100%;height:100%;padding:15px 8px 0;background:none;border:0;
+    font:500 16px 'IBM Plex Mono',ui-monospace,monospace;text-transform:uppercase}
+  #timeline .tlcell .pickbtn span:first-child{flex:1 1 auto;text-align:center}
+  #timeline .tlcell .pickbtn:hover{color:#fff}
+  :root{--mbh-yellow:var(--gold);--mbh-ghost:rgba(234,230,44,.2);--mbh-plate:var(--plate);--mbh-plate-lin:#6DA0CF;
+        --mbh-light:var(--chrome);--mbh-bevel:inset -1px -1px 1px 0 #000,inset 1px 1px 1px 0 #fff;
+        --mbh-build:#7EBEEF;--mbh-date:#60D068}   /* build 238: header build/date inks are tokens so themes re-ink them */
+  #mbhHead{position:relative;height:102px;background:#000;flex:0 0 auto}
+  #mbhMark{position:absolute;left:0;top:0;width:320px;height:64px}
+  #mbhMark svg{display:block;width:320px;height:64px}
+  #mbhSub{position:absolute;left:0;top:67px;width:319px;height:16px;text-align:center;
+    font:400 23px/16px Visitor;letter-spacing:.92px;color:var(--mbh-yellow);white-space:nowrap}
+  .mbhDiv{height:4px;background:var(--mbh-light);box-shadow:var(--mbh-bevel);flex:0 0 auto}
+  .tabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--bg0);flex:0 0 auto}
+  .tabs button{height:26px;background:var(--chrome);box-shadow:var(--mbh-bevel);border:0;color:var(--bg0);cursor:pointer;
+    font:500 14px 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.02em;padding:0}
+  .tabs button:hover{filter:brightness(1.05)}
+  .tabs button.on{box-shadow:inset 1px 1px 1px 0 #000,inset -1px -1px 1px 0 #fff}
+  .tabs button.tabfill{background:var(--chrome);box-shadow:none;cursor:default;pointer-events:none}
+  .panel{padding:12px;display:none}
+  /* b313 (Tim): the 308px cards need the room — 6px sides fit the 320px sidebar EXACTLY
+     (6+308+6), killing the horizontal scrollbar. overflow-x hidden is the belt for
+     classic-scrollbar platforms where the vertical bar steals ~11px of that width —
+     there the card clips a few px under the bar instead of spawning a sideways scroll. */
+  .panel.on{display:flex;flex-direction:column;flex:1;min-height:0}
+  .panel:not([data-panel="layers"]).on{overflow-y:auto;scrollbar-gutter:stable}       /* non-layer tabs scroll as a whole; gutter reserved so the bar appearing can't shove content sideways (build 215) */
+  /* section headers = inverted label strip (bright bar, dark text), bleeding to panel edges */
+  h4{position:relative;margin:16px -12px 6px;padding:0 8px;height:24px;display:flex;align-items:center;
+    background:var(--plate);color:var(--chrome);box-shadow:var(--mbh-bevel);font:500 14px 'IBM Plex Mono',ui-monospace,monospace;
+    letter-spacing:normal;text-transform:uppercase}
+  /* the design's 24px +/- box on collapsible section headers (inspector): raised + plus when
+     collapsed, pressed + minus when open — same grammar as the source drawers */
+  h4 .secbtn{position:absolute;right:0;top:0;width:24px;height:24px;background:var(--plate);box-shadow:var(--mbh-bevel);
+    border:0;padding:0;cursor:pointer}
+  h4 .secbtn::before,h4 .secbtn::after{content:'';position:absolute;background:var(--chrome)}
+  h4 .secbtn::before{left:7px;top:11px;width:10px;height:2px}
+  h4 .secbtn::after{left:11px;top:7px;width:2px;height:10px}
+  h4.open .secbtn{box-shadow:inset 1px 1px 1px 0 #000,inset -1px -1px 1px 0 #fff}
+  h4.open .secbtn::after{display:none}
+  h4.sec{cursor:pointer;padding-right:32px}
+  h4:first-child{margin-top:-12px}
+  .panel h4{flex:none}   /* b457 (Tim: "the headers in the left hand menu don't match"): the panels are flex columns, which shrank their headers to 18.5px */
+  /* build 203 (Inspector V2): inspector section headers take the NODE COLOUR with embossed
+     +/− glyphs; left-panel h4s keep the plate grey. --nc rides the inspector's cat- class. */
+  .ins h4{background:var(--nc,var(--plate));color:var(--chrome-b)}
+  .ins h4 .secbtn{background:var(--nc,var(--plate))}
+  .ins h4 .secbtn::before,.ins h4 .secbtn::after{background:var(--nc,var(--plate));
+    box-shadow:inset -1px -1px 0 0 #000,inset 1px 1px 1px 0 #fff}
+  .ins.cat-generator{--nc:var(--cat-gen)}
+  .ins.cat-processor{--nc:var(--cat-proc)}
+  .ins.cat-distorter{--nc:var(--cat-dist)}
+  .row{display:flex;align-items:center;gap:8px;margin:12px 0}
+  /* build 237: left-panel rows speak the Inspector V2 language — Plex Mono 14 capitalised
+     label on the left, the control cluster pushed right (margin-right:auto on the label);
+     sliders still flex to fill. .ins keeps its own overrides below. */
+  .row label{flex:0 0 auto;margin-right:auto;white-space:nowrap;color:var(--chrome);
+    font:400 14px 'IBM Plex Mono',ui-monospace,monospace;text-transform:capitalize;letter-spacing:normal;line-height:1.25}
+  .row input[type=range]{flex:1}
+  .row .num{width:52px;text-align:right;color:var(--chrome);
+    font:400 14px 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+  /* dressed controls flex into the space left of the label instead of overflowing the panel
+     (the Codec pick-button used to run off the right edge — width:100% can't shrink, flex can) */
+  .row .pickbtn{flex:1 1 auto;min-width:0;width:auto}
+  .row .boolw{flex:1 1 auto;min-width:0;width:auto}
+  .row input[type=text]{height:24px;padding:0 7px;min-width:0;background:var(--bg1);border:1px solid var(--chrome);
+    color:var(--chrome);font:400 14px 'IBM Plex Mono',ui-monospace,monospace}
+  /* left-panel sliders take the design's light 4px track + 18px square thumb (same as .lrow);
+     .ins's own slider rules still win inside the inspector */
+  .panel .row input[type=range]{-webkit-appearance:none;appearance:none;height:20px;background:transparent;margin:0}
+  .panel .row input[type=range]::-webkit-slider-runnable-track{height:4px;background:rgba(216,216,216,.3);border:0}
+  .panel .row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-7px;
+    border-radius:2px;background:var(--chrome);border:0;cursor:pointer}
+  .panel .row input[type=range]::-moz-range-track{height:4px;background:rgba(216,216,216,.3);border:0}
+  .panel .row input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:2px;background:var(--chrome);border:0;cursor:pointer}
+
+  /* native range sliders → hairline rail + square ink thumb */
+  input[type=range]{-webkit-appearance:none;appearance:none;height:18px;background:transparent;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;margin-top:-5px;
+    background:var(--ink);border:0;border-radius:0;cursor:pointer}
+  input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;background:var(--ink);border:0;border-radius:0;cursor:pointer}
+  /* colour swatch inputs (build 219): kill the native inner bevel so the swatch is a flat
+     tile inside the skin's chrome (the base input[type=color] rule lives with the row styles) */
+  input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+  input[type=color]::-webkit-color-swatch{border:none;border-radius:0}
+  input[type=color]::-moz-color-swatch{border:none;border-radius:0}
+  /* ── Parameter block (new skin, build 162 — lab piece 3): label, full-width light slider,
+        then LFO · reset · RND · value stepper; hairline #3D3A3A divider between blocks ── */
+  /* build 203 (Inspector V2): every slider param is a GROUPED BLOCK — a var(--plate) name strip on a
+     var(--bg1) well; the old hairline dividers are gone (16px gaps between blocks instead) */
+  .ins .pblock{margin:16px -8px 0;padding:0 2px 8px;border-bottom:0;background:var(--bg1);border-radius:2px 2px 0 0}
+  .ins .secbody .pblock:first-child{margin-top:12px}
+  .ptop{display:flex;align-items:center;height:21px;margin:0 -2px 11px;padding:0 6px;background:var(--plate);border-radius:2px 2px 0 0}
+  .plabel{flex:1;min-width:0;color:var(--chrome-b);font:500 14px 'IBM Plex Mono',ui-monospace,monospace;
+    text-transform:capitalize;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:normal}
+  .pctl{display:flex;align-items:center;gap:8px;margin:15px 2px 0}
+  .pbtn{flex:none;width:44px;height:24px;border-radius:2px;border:1px solid var(--chrome);background:var(--bg0);color:var(--chrome);
+    font:600 12px 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:1.2px;text-transform:uppercase;line-height:normal;
+    padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .pbtn:hover{border-color:#fff;color:#fff}
+  .pbtn.on{background:var(--gold);border-color:var(--gold);color:var(--bg0)}
+  .pbtn.on:hover{filter:brightness(1.06)}
+  .presetbtn{flex:none;width:26px;height:24px;margin-left:auto;padding:0;background:none;border:0;color:var(--chrome);cursor:pointer;   /* 26x24 (Tim, b416), against the value box (the RNG button went in b414) */
+    display:flex;align-items:center;justify-content:center}
+  .presetbtn:hover{color:#fff}
+  .presetbtn svg{display:block;width:26px;height:24px}   /* b421: the glyph itself is 26x24 (Tim's reference), 8px off the value box */
+  /* value stepper: bordered 96x24, − / typed value / + (value = Plex Mono 16, NOT the 7-seg) */
+  .pstep{flex:none;display:inline-flex;align-items:center;width:96px;height:24px;border:1px solid var(--chrome);background:var(--bg0)}
+  .pstep button{flex:none;width:24px;height:22px;background:none;border:0;color:var(--chrome);font:500 16px 'IBM Plex Mono',ui-monospace,monospace;
+    padding:0;cursor:pointer;line-height:normal}
+  .pstep button:hover{color:#fff}
+  .pstep .pval{flex:1;min-width:0;width:auto;height:22px;border:0;border-radius:0;background:none;color:var(--chrome);
+    text-align:center;font:500 16px 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums;line-height:normal;padding:0}
+  .pstep .pval:focus{outline:1px solid var(--gold);outline-offset:-1px}
+  .pbot{display:flex;align-items:center}
+
+  .slidwrap{position:relative;flex:1;display:flex;align-items:center;height:20px}
+  .slidwrap .lfotrack{position:absolute;left:9px;right:9px;top:50%;height:4px;transform:translateY(-50%);
+    background:rgba(216,216,216,.3);border:0;z-index:0;pointer-events:none}
+  .slidwrap .lfoband{position:absolute;top:50%;height:4px;transform:translateY(-50%);
+    background:var(--gold);z-index:1;pointer-events:none}                    /* LFO reach = yellow (Inspector V2) */
+  .slidwrap input[type=range]{-webkit-appearance:none;appearance:none;flex:1;background:transparent;position:relative;z-index:2;margin:0;height:20px}
+  .slidwrap input[type=range]::-webkit-slider-runnable-track{background:transparent;height:20px}
+  .slidwrap input[type=range]::-moz-range-track{background:transparent;height:4px}
+  .slidwrap input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;
+    border-radius:2px;background:var(--chrome);border:0;margin-top:1px;cursor:pointer}   /* centre 18px thumb on the 20px runnable-track */
+  .slidwrap input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:2px;background:var(--chrome);border:0;cursor:pointer}
+  .slidwrap.lfo input[type=range]::-webkit-slider-thumb{background:var(--gold)}
+  .slidwrap.lfo input[type=range]::-moz-range-thumb{background:var(--gold)}
+  .ins .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:12px 0}
+  .ins .row > label{flex:0 0 100%;width:auto;color:var(--chrome);
+    font:400 14px 'IBM Plex Mono',ui-monospace,monospace;text-transform:capitalize;letter-spacing:normal}
+  .ins .row input[type=text]{height:24px;padding:0 7px;background:var(--bg1);border:1px solid var(--chrome);
+    color:var(--chrome);font:400 14px 'IBM Plex Mono',ui-monospace,monospace}
+  /* (.ins select rule pruned in build 169 — the pick menu replaced every native select at b166.) */
+  .ins .blendbtn{flex:1;height:24px;padding:0 7px;background:var(--bg1);border:1px solid var(--chrome);
+    color:var(--chrome);font:400 14px 'IBM Plex Mono',ui-monospace,monospace}
+  /* two-option params: the design's segmented boolean — one click, not a two-step dropdown */
+  .boolw{display:flex;width:100%}
+  .boolw button{flex:1;min-width:0;height:36px;background:none;border:1px solid var(--chrome);color:var(--chrome);
+    font:500 14px 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:1.4px;text-transform:uppercase;cursor:pointer;padding:0}
+  .boolw button+button{border-left:0}
+  .boolw button:first-child{border-radius:2px 0 0 2px}
+  .boolw button:last-child{border-radius:0 2px 2px 0}
+  .boolw button.fill{background:var(--chrome);color:var(--bg0)}
+  .ins .row input[type=range]{-webkit-appearance:none;appearance:none;height:20px;background:transparent;margin:0}
+  .ins .row input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--chrome);border:1px solid var(--chrome)}
+  .ins .row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-8px;border-radius:2px;background:var(--chrome);border:0;cursor:pointer}
+  .ins .row input[type=range]::-moz-range-track{height:4px;background:var(--chrome);border:1px solid var(--chrome)}
+  .ins .row input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:2px;background:var(--chrome);border:0;cursor:pointer}
+
+  /* text fields / selects / textareas → dark wells with hairline border */
+  input[type=text],select,textarea{background:var(--bg1);border:1px solid var(--chrome);border-radius:0;padding:6px 8px;width:100%}
+  select{text-transform:uppercase;letter-spacing:.6px;font-size:12px}
+  textarea{height:90px;resize:vertical;font:11px/1.5 'IBM Plex Mono',ui-monospace,monospace;text-transform:none}
+  #shareLinkBox{height:64px}  /* b304: the share link is one long line — two wrapped rows is plenty (the preset-code box died in b308) */
+  input[type=color]{background:var(--bg1);border:1px solid var(--chrome);border-radius:0;height:24px;width:66px;padding:2px;cursor:pointer;-webkit-appearance:none;appearance:none}   /* build 219: standard control chrome (24px row, var(--chrome) border, field width) */
+
+  /* buttons */
+  .btn{background:none;border:1px solid var(--chrome);border-radius:0;padding:4px 10px;min-height:26px;cursor:pointer;
+    color:var(--chrome);text-transform:uppercase;letter-spacing:.02em;font:500 14px 'IBM Plex Mono',ui-monospace,monospace}
+  .btn:hover{background:var(--chrome);color:var(--bg0)}
+  .btn.primary{background:var(--chrome);border-color:var(--chrome);color:var(--bg0);font-weight:600}
+  .btn.primary:hover{background:#fff}
+  .btnrow{display:flex;gap:6px;flex-wrap:wrap}
+  /* b457: the Export tab after Tim's Figma (459:183) — 36px outlined rows, his icons centred in a 42px
+     slot, the label 43px in; 12px between rows; panel sides 6px so the rows run 6..314 */
+  .panel[data-panel="export"]{padding-left:6px;padding-right:6px}
+  .panel[data-panel="export"] h4{margin-left:-6px;margin-right:-6px;margin-bottom:12px}
+  .panel[data-panel="export"] h4.xgap{margin-top:9px}
+  .xbtn{position:relative;flex:none;display:flex;align-items:center;width:100%;height:36px;margin:0 0 12px;padding:0 0 0 42px;
+    background:none;border:1px solid var(--chrome);border-radius:0;color:var(--chrome);cursor:pointer;text-align:left;white-space:nowrap;
+    font:500 14px 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:normal;text-transform:uppercase}
+  .xbtn .xi{position:absolute;left:-1px;top:0;bottom:0;width:42px;display:flex;align-items:center;justify-content:center}
+  .xbtn svg{display:block;fill:currentColor}
+  .xbtn:hover:not(:disabled){background:var(--chrome);color:var(--bg0)}
+  .xbtn:disabled{opacity:.35;cursor:default}
+  #left .btnrow .btn{flex:1 1 auto;min-width:0}   /* build 237: action buttons fill the panel width */
+  #mbToast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(6px);background:var(--bg0);color:var(--chrome);
+    border:1px solid var(--chrome);border-radius:0;padding:8px 14px;font:400 12px 'IBM Plex Mono',ui-monospace,monospace;box-shadow:0 8px 24px rgba(0,0,0,.6);
+    z-index:60;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+  #mbToast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  /* b446: the Importing media panel (sits just above where toasts appear) */
+  #mbImport{position:fixed;left:50%;bottom:68px;transform:translateX(-50%);width:340px;max-width:calc(100vw - 40px);box-sizing:border-box;background:var(--bg0);color:var(--chrome);
+    border:1px solid var(--chrome);padding:10px 12px 11px;font:400 12px 'IBM Plex Mono',ui-monospace,monospace;box-shadow:0 8px 24px rgba(0,0,0,.6);z-index:61;display:none}
+  #mbImport.on{display:block}
+  #mbImport .t{letter-spacing:.08em;text-transform:uppercase}
+  #mbImport .n{color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:3px 0 9px}
+  #mbImport .bar{height:8px;border:1px solid var(--chrome);background:var(--bg1)}
+  #mbImport .bar i{display:block;height:100%;width:0;background:var(--accent)}
+  #mbImport .s{margin-top:8px;color:var(--dim);display:flex;justify-content:space-between;gap:10px;font-variant-numeric:tabular-nums}
+  .addpop.floating{position:fixed;right:auto;z-index:5500;box-shadow:0 12px 36px rgba(0,0,0,.7)}
+
+  .stepper{display:inline-flex;align-items:center;width:96px;height:24px;border:1px solid var(--chrome);border-radius:0;overflow:hidden;background:none}
+  /* Build 198: the stepper is the LAB's .cstep, ported faithfully this time — value centred
+     across the whole 96px field, − / + drawn as bar glyphs floating at the edges. The buttons
+     sit AFTER the input in the DOM so they paint (and click) above it. */
+  .stepper{position:relative;display:inline-block}
+  .stepper button{position:absolute;top:0;width:22px;height:100%;background:none;border:0;color:var(--chrome);
+    font:500 16px 'IBM Plex Mono',ui-monospace,monospace;padding:0;cursor:pointer;line-height:normal}
+  .stepper button:hover{color:#fff}
+  .stepper button:first-of-type{left:0}
+  .stepper button:last-of-type{right:0}
+  .stepper button:first-of-type::before{content:'';position:absolute;left:8px;top:10px;width:8px;height:2px;background:var(--chrome)}
+  .stepper button:last-of-type::before{content:'';position:absolute;right:8px;top:10px;width:8px;height:2px;background:var(--chrome)}
+  .stepper button:last-of-type::after{content:'';position:absolute;right:11px;top:7px;width:2px;height:8px;background:var(--chrome)}
+  /* out-specify the generic row text-input dress (bg + border) that painted OVER the − button */
+  .row .stepper input[type=text],.ins .row .stepper input[type=text]{background:none;border:0;height:100%;padding:0;margin:0;flex:none;
+    font:500 16px 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums}   /* b416: the row dress also swapped the type to 14px regular — Tim's box is Plex Mono Medium 16, centred on the whole 96x24 field */
+  .stepper input:focus{outline:1px solid var(--gold);outline-offset:-1px}
+  .pctl .stepper{flex:none;background:var(--bg0)}
+  .stepper input{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:0;background:none;color:var(--chrome);
+    text-align:center;font:500 16px 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:0}
+
+  .addmenu{position:relative}
+  /* Add menu = a two-tier cascading menu, colour only (designed in tools/menulab.html). Tier 1 = category
+     rows tinted to the layer categories; hovering one flies its nodes out to the right. */
+  /* Blend dropdown (build 142) — a custom menu because a native select can't see option hover:
+     hovering an entry LIVE-previews that blend mode on the canvas, Figma-style. Styled to sit
+     flush with the real selects around it. */
+  .blendbtn{flex:1;display:flex;align-items:center;justify-content:space-between;background:var(--well);
+    border:1px solid var(--line);border-radius:0;padding:6px 8px;color:var(--ink);cursor:pointer;
+    text-transform:uppercase;letter-spacing:.6px;font-size:12px;text-align:left;min-width:0}
+  .blendbtn .chev{margin-left:6px}
+  .blendpop{position:fixed;z-index:5500;min-width:120px;background:var(--bg1);border:1px solid var(--chrome);
+    box-shadow:0 10px 30px rgba(0,0,0,.6);overflow-y:auto;overscroll-behavior:contain}
+  .blendpop .bopt{padding:5px 10px;cursor:pointer;color:var(--chrome);font:400 14px 'IBM Plex Mono',ui-monospace,monospace;
+    text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+  .blendpop .bopt:hover{background:var(--chrome);color:var(--bg0)}
+  .blendpop .bopt.cur{box-shadow:inset 3px 0 0 var(--gold)}
+  .blendpop .bsep{border-top:1px solid var(--line-dim);margin:4px 0}
+  /* b440 (Tim): the Media File row. A preview of the imported file ("it helps build the users
+     model of the app a lot") and a real button in place of the dropdown-styled opener. */
+  .mfprev{flex:0 0 100%;display:flex;align-items:center;justify-content:center;height:150px;overflow:hidden;border:1px solid var(--line-dim);
+    background:conic-gradient(#2a2a2a 25%,#1b1b1b 0 50%,#2a2a2a 0 75%,#1b1b1b 0) 0 0/16px 16px}
+  .mfprev.empty{border-style:dashed;background:none;color:var(--chrome);opacity:.6;font:400 12.5px 'Geist',sans-serif}
+  .mfprev .mfin{display:flex;align-items:center;justify-content:center;width:100%;height:100%}
+  .mfprev img,.mfprev video{display:block;max-width:100%;max-height:100%;object-fit:contain}
+  .mfname{flex:0 0 100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--chrome);font:400 12.5px 'Geist',sans-serif}
+  .ins .row .mfbtn{flex:1 1 auto}
+  /* b441 (Tim, from the loop lab): the Media Section. A filmstrip of the clip with a yellow
+     frame over the part in use: drag an end to trim, drag the middle to slide. Speed and Loops
+     read out underneath and follow it. */
+  .msec{flex:0 0 calc(100% - 32px);position:relative;margin:6px 16px 2px;user-select:none;-webkit-user-select:none;touch-action:none}
+  .msec canvas.strip{display:block;width:100%;height:44px;background:#101010;border-radius:3px}
+  .msec .shade{position:absolute;top:0;height:44px;background:rgba(0,0,0,.68);pointer-events:none}
+  .msec .frame{position:absolute;top:-3px;height:50px;box-sizing:border-box;border-top:3px solid #FFD60A;border-bottom:3px solid #FFD60A;cursor:grab}
+  .msec .frame.drag{cursor:grabbing}
+  .msec .frame .hd{position:absolute;top:-3px;width:15px;height:50px;background:#FFD60A;cursor:ew-resize;display:flex;align-items:center;justify-content:center}
+  .msec .frame .hd.in{left:-15px;border-radius:7px 0 0 7px}
+  .msec .frame .hd.out{right:-15px;border-radius:0 7px 7px 0}
+  .msec .frame .hd i{display:block;width:7px;height:7px;border-left:2.5px solid #1c1c1c;border-bottom:2.5px solid #1c1c1c;transform:rotate(45deg);margin-left:4px}
+  .msec .frame .hd.out i{transform:rotate(-135deg);margin-left:-4px}
+  .msec .tip{position:absolute;bottom:54px;display:none;transform:translateX(-50%);background:#000;border:2px solid #FFD60A;border-radius:5px;overflow:hidden;z-index:6;pointer-events:none}
+  .msec .tip canvas{display:block;width:128px}
+  .msec .tip span{position:absolute;left:0;right:0;bottom:0;padding:1px 0;text-align:center;background:rgba(0,0,0,.62);color:#fff;font:400 11px 'Geist',sans-serif}
+  .msread{flex:0 0 100%;color:var(--chrome);font:400 12.5px 'Geist',sans-serif;font-variant-numeric:tabular-nums}
+  .ins .row .msval{flex:0 0 96px;text-align:right;color:var(--chrome);font:400 12.5px 'Geist',sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ins .row .msval b{font-weight:600;font-size:17px;color:var(--chrome-b,#F2F2F2)}
+  .ins .row .msval b.true{color:#3ecf6e}
+  .ins .row .msval b.far{color:#f2a23a}
+  .ins .row.msrow input[type=range]{flex:1 1 auto;min-width:0}
+  /* pickbtn (build 166) — the skin's dropdown opener, used wherever a native select used to be */
+  .pickbtn{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;height:24px;
+    padding:0 7px;background:var(--bg1);border:1px solid var(--chrome);color:var(--chrome);
+    font:400 14px 'IBM Plex Mono',ui-monospace,monospace;cursor:pointer;text-align:left}
+  .pickbtn span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* b423 (Tim: the dropdown carets were "tiny everywhere"): every dropdown opener draws the same
+     chevron as the Colours preset menu. The span still holds the old glyph (hidden by
+     font-size:0); the chevron is a mask filled with the button's own text colour.
+     b424 (Tim: 15x8 was "a bit too big still"): 11.25x6 — between the old ~5px glyph and 15x8. */
+  .pickbtn .chev,.blendbtn .chev{flex:none;display:block;width:11.25px;height:6px;font-size:0;background:currentColor;
+    -webkit-mask:var(--chev) center/100% 100% no-repeat;mask:var(--chev) center/100% 100% no-repeat}
+  .hint{color:var(--dim);font-family:'Geist',system-ui,sans-serif;font-size:12.5px;margin-top:10px;line-height:1.55;text-transform:none;letter-spacing:0}
+  .hint b{color:var(--ink)}
+
+/* ═══════════════ MADLOOP ═══════════════ */
+/* The interface faces. IBM Plex Mono, Geist and DSEG7: SIL Open Font License 1.1. Visitor: Brian
+   Kent's freeware pixel face. See fonts/README.md. */
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/IBMPlexMono-Regular.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url(fonts/IBMPlexMono-Medium.woff2) format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url(fonts/IBMPlexMono-SemiBold.woff2) format('woff2')}
+@font-face{font-family:'Geist';font-style:normal;font-weight:400 800;font-display:swap;src:url(fonts/Geist-Variable-Latin.woff2) format('woff2')}
+@font-face{font-family:'DSEG7';font-style:italic;font-weight:700;font-display:swap;src:url(fonts/DSEG7Classic-BoldItalic.woff2) format('woff2')}
+@font-face{font-family:'Visitor';font-style:normal;font-weight:400;font-display:swap;src:url(fonts/visitor2.ttf) format('truetype')}
+
+/* two columns: the sidebar and the stage (Madblur's right-hand inspector isn't needed) */
+#app{display:grid;grid-template-columns:320px 1fr;height:100vh}
+/* header (Tim's Figma, MadBlur 459:615): Madblur's mark, the LOOP stamp, the subtitle; 86px tall */
+#mbhHead{position:relative;height:86px;background:#000;flex:0 0 auto;overflow:hidden}
+#mbhStamp{position:absolute;left:144.42px;top:-1.56px;width:169.71px;height:67.94px;transform:rotate(-15.67deg);pointer-events:none}
+.tabs{grid-template-columns:106px 108px 106px}
+#left .panel{padding-bottom:20px}
+#left .panel .btn.mfbtn{width:100%;margin-top:8px}
+.panel .mfprev{flex:none;margin-top:2px}
+.panel .mfname,.panel .msread{flex:none}
+body:not(.hasclip) #gl{visibility:hidden}
+.mfprev.empty{text-align:center;padding:0 16px}
+.mfname{margin-top:8px}
+#mfinfo{margin-top:8px}
+/* the sidebar's scrollbar: no reserved gutter (it left a gap down the right of the panel), and a
+   slim bar hard against the edge when there is something to scroll */
+#left .panel.on{scrollbar-gutter:auto;scrollbar-width:thin;scrollbar-color:var(--line-dim) transparent}
+#left .panel::-webkit-scrollbar{width:6px}
+#left .panel::-webkit-scrollbar-thumb{background:var(--line-dim);border:0}
+#left .panel::-webkit-scrollbar-thumb:hover{background:var(--chrome)}
+/* About (Tim's Figma, MadBlur 464:1165): a 570px black box, 2px Madblur-orange border, over a dark
+   overlay. Madblur wordmark with the LOOP stamp, then the text, three link columns between two rules,
+   credits. Tidied from the design: one 36px text margin, rules 14px in, equal columns, 16px either
+   side of each rule. */
+#about{position:fixed;inset:0;z-index:8000;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.72)}
+#about[hidden]{display:none}   /* hidden by the attribute too, so it never shows if this sheet fails to load */
+#about .abox{position:relative;width:570px;max-width:100%;max-height:100%;overflow:auto;background:#000;border:2px solid #E74311;outline:none;
+  padding:17px 0 20px;font:500 14px/17px 'Geist',system-ui,sans-serif;color:var(--chrome);user-select:text}
+#about .alogo{position:relative;width:455px;height:257px;margin:0 auto}
+#about .alogo .wm{display:block;width:455px;height:257px}
+#about .alogo .st{position:absolute;left:207px;top:51.07px;width:230.48px;height:92.26px;transform:rotate(-15.67deg);pointer-events:none}
+#about .atext{margin:22px 36px 0;text-align:center}
+#about .atext p{margin:0 0 17px}
+#about .atext p:last-child{margin-bottom:0}
+#about .ver{color:var(--gold)}
+#about a{color:inherit;text-decoration:none}
+#about .atext a{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+#about a[href]:hover{color:#fff}
+#about .acols{display:grid;grid-template-columns:repeat(3,1fr);margin:24px 14px 0;padding:16px 22px;border-top:1px solid var(--line-dim);border-bottom:1px solid var(--line-dim)}
+#about .acol{display:flex;flex-direction:column;align-items:center;gap:12px}
+#about .acol .lab{color:var(--gold)}
+#about .acol a.lab[href]:hover{color:#fff}
+#about .icons{display:flex;gap:20px;height:30px;align-items:center}
+#about .icons a{display:flex;width:30px;height:30px;align-items:center;justify-content:center;color:var(--chrome)}
+#about .icons .ic{display:block;max-width:30px;max-height:30px;width:auto;height:auto}
+#about a.todo{opacity:.35;cursor:default}
+#about .acred{margin:16px 36px 0;font:500 11px/16px 'Geist',system-ui,sans-serif;color:#686868}
+#about .acred b{font-weight:500}
+/* the looping panel uses the inspector's grammar (stacked labels, slider blocks) inside the sidebar */
+/* Madblur build 203: one-line rows, label left, control right */
+.ins .row.urow{flex-wrap:nowrap;justify-content:space-between;margin:8px 0}
+.ins .row.urow > label{flex:0 1 auto;white-space:nowrap}
+.ins .row.urow .stepper{flex:none}
+.ins .numin{width:96px;height:24px;text-align:center;padding:0;border:1px solid var(--chrome);background:var(--bg0);color:var(--chrome);
+  font:500 16px 'Geist',system-ui,sans-serif;font-variant-numeric:tabular-nums;outline:none}
+.ins .numin:focus{outline:1px solid var(--gold);outline-offset:-1px}
+.ins .pblock{margin:16px 0 0}
+.ins .row .pickbtn{flex:1 1 100%}
+#secBox .msec{margin-top:10px}
+#methodBox .hint{margin-top:-4px}
+/* the stage: the preview sits in a view that scrolls when zoomed, above the docked timeline */
+#stage{padding:0}
+#view{position:absolute;left:0;right:0;top:0;bottom:40px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#view.zoomed{overflow:auto;display:block;padding:18px}
+#view.zoomed canvas{margin:auto;display:block}
+#gl{display:block;flex:none}
+#drop{position:absolute;left:18px;right:18px;top:18px;bottom:58px;z-index:10;display:flex;align-items:center;justify-content:center;
+  border:1px dashed var(--line-dim);color:var(--chrome);cursor:pointer;text-align:center;font:400 13px 'Geist',system-ui,sans-serif}
+#drop b{display:block;font:500 16px 'IBM Plex Mono',ui-monospace,monospace;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+#drop:hover{border-color:var(--chrome)}
+body.dragging #drop{display:flex!important;border-color:var(--gold);color:var(--gold);background:rgba(24,23,23,.85)}
+body.dragging #drop span{visibility:hidden}
+#mbToast{bottom:56px;max-width:min(560px,calc(100vw - 40px));white-space:normal;text-align:center;line-height:1.5}
+/* phones: a word first, then the tool if they want it */
+#phone{position:fixed;inset:0;z-index:9000;display:none;align-items:center;justify-content:center;padding:24px;background:var(--bg0);color:var(--chrome);
+  font:400 14px/1.6 'Geist',system-ui,sans-serif;text-align:center}
+#phone b{display:block;font:500 16px 'IBM Plex Mono',ui-monospace,monospace;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+body.phone #phone{display:flex}
+@media (max-width:760px){ #app{grid-template-columns:1fr;grid-template-rows:auto 60vh;height:auto;min-height:100vh} #left{overflow:visible} #stage{min-height:60vh} }

@@ -1,0 +1,9 @@
+.DS_Store
+.claude/
+# test footage never goes in the repo
+*.mp4
+*.mov
+*.m4v
+*.webm
+*.mkv
+*.zip
