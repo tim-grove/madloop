@@ -459,7 +459,6 @@ body:not(.hasclip) #gl{visibility:hidden}
 .ins .pblock{margin:16px 0 0}
 .ins .row .pickbtn{flex:1 1 100%}
 #secBox .msec{margin-top:10px}
-#methodBox .hint{margin-top:-4px}
 /* the stage: the preview sits in a view that scrolls when zoomed, above the docked timeline */
 #stage{padding:0}
 #view{position:absolute;left:0;right:0;top:0;bottom:40px;display:flex;align-items:center;justify-content:center;overflow:hidden}

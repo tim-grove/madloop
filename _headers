@@ -1,0 +1,5 @@
+# Cloudflare Pages reads this file and sends these headers with every page (as madblur.com does).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  X-Frame-Options: DENY

@@ -2,6 +2,14 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 4 — 2026-10-16
+
+- About: the GitHub link points at github.com/tim-grove/madloop.
+- Importing a second clip while the first is still being read keeps the second.
+- A failed export no longer leaves an empty file where it was to be saved.
+- `_headers` for Cloudflare Pages (nosniff, no referrer, no framing), as madblur.com.
+- Tidying: one resize watcher for the Section strip, a dead style removed.
+
 ## Build 3 — 2026-10-16
 
 - The playhead starts paused.

@@ -16,10 +16,10 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 3, BUILD_DATE = '2026-10-16';
+const BUILD = 4, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
-  github:    '',                            // TODO (Tim): the Madloop repo, once created
+  github:    'https://github.com/tim-grove/madloop',
   timX:      'https://x.com/_timgrove',
   timIG:     'https://www.instagram.com/tim_grove/',
   madblur:   'https://madblur.com',
@@ -512,9 +512,11 @@ function patchedBlob(file, fx){
 function openInput(blob){ return new MB.Input({ source:new MB.BlobSource(blob), formats:MB.ALL_FORMATS }); }
 
 const CODEC_NAMES = { avc:'H.264', hevc:'H.265 / HEVC', vp9:'VP9', av1:'AV1', vp8:'VP8', prores:'ProRes' };
+let _importN = 0;   // the newest import; an older one still reading when another starts gives way
 async function importFile(file){
   if(!file) return;
   if(_exporting){ toast('Wait for the export to finish first.'); return; }
+  const my = ++_importN;
   const name = String(file.name||'clip').slice(0,120);
   const box = $('#mfprev');
   box.className='mfprev empty'; box.textContent='Reading '+name+'…';
@@ -538,7 +540,6 @@ async function importFile(file){
       const fx = await hevcLeadFix(file, f=>{ box.textContent='Checking '+name+'… '+Math.round(f*100)+'%'; });
       blob = patchedBlob(file, fx);
     }
-    input.dispose && input.dispose();
     const url = URL.createObjectURL(blob);
     // the preview needs the browser's own player to take it too
     const ok = await new Promise(res=>{ const v=el('video',{muted:true,playsInline:true,preload:'auto'});
@@ -546,6 +547,8 @@ async function importFile(file){
       const tm=setTimeout(()=>fin(false), 20000);
       v.addEventListener('loadeddata', ()=>fin(true), {once:true}); v.addEventListener('error', ()=>fin(false), {once:true}); v.src=url; });
     if(!ok){ URL.revokeObjectURL(url); throw new Error('This browser can read the file but can’t play it for the preview. Try Chrome, or convert the clip to H.264.'); }
+    if(my!==_importN){ URL.revokeObjectURL(url); return; }   // another clip came in while this one was read
+    if(_exporting){ URL.revokeObjectURL(url); throw new Error('Wait for the export to finish first.'); }
 
     if(clip && clip.url) URL.revokeObjectURL(clip.url);
     clip = { file, blob, url, name, size:file.size, w, h, dur, t0, srcFps, codec, rotation, hdr };
@@ -560,6 +563,7 @@ async function importFile(file){
     if(hdr) toast('This is an HDR clip. Madloop exports in standard range, so bright colours may look flatter.');
   }catch(e){
     console.error('[Madloop import]', e);
+    if(my!==_importN) return;
     box.className='mfprev empty'; box.textContent='No clip yet';
     if(clip) showClip();
     toast(e && e.message ? e.message : 'Madloop couldn’t read that file.', 6000);
@@ -723,6 +727,7 @@ const PARAMS = [
   {key:'xf',       label:'Crossfade length', kind:'float', min:2, max:100, step:1, def:18, show:m=>m===3 || m===5},   // share of each play spent blending; 100 = always blending
 ];
 let _secPlace = null, _secRedraw = null;   // the Section block's readouts / its whole redraw (filmstrip too), while it is on screen
+let _secRO = null;   // the Section block's resize watcher
 function changed(){ invalidate(); if(_secPlace) _secPlace(); exportInfo(); }
 
 function renderLooping(){
@@ -804,7 +809,8 @@ function mediaSectionUI(box){
   };
   _secPlace=place; _secRedraw=()=>{ if(cv.isConnected){ drawStrip(); place(); } };
   requestAnimationFrame(()=>{ if(cv.isConnected){ drawStrip(); place(); } });
-  if(typeof ResizeObserver==='function') new ResizeObserver(()=>{ if(cv.isConnected){ drawStrip(); place(); } }).observe(sec);
+  if(_secRO) _secRO.disconnect();   // the last drawing's watcher goes with it
+  if(typeof ResizeObserver==='function'){ _secRO=new ResizeObserver(()=>{ if(cv.isConnected){ drawStrip(); place(); } }); _secRO.observe(sec); }
 
   // dragging: an end trims, the middle slides
   const showTip=(t)=>{ if(!strip.sheet) return; const i=Math.max(0,Math.min(strip.n-1,Math.floor(t/dur*strip.n)));
@@ -1074,6 +1080,7 @@ async function runExport(kind){
     prog.textContent='Export failed: '+(e && e.message ? e.message : e);
     if(output) try{ await output.cancel(); }catch(x){}
     if(writable) try{ await writable.abort(); }catch(x){}
+    if(fileHandle && fileHandle.remove) try{ await fileHandle.remove(); }catch(x){}   // no empty file left behind
   }finally{
     pongHide();
     try{ input && input.dispose && input.dispose(); }catch(e){}

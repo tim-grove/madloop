@@ -30,8 +30,8 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 5. **Madblur's UI is the source.** New UI is ported from the newest Madblur build
    (`Gradient Mesh Generator/builds/madblur_NNN.html`), skin copied rule for rule. Where the brief
    or the loop lab disagree with Madblur, Madblur wins. Tim's Figma: MadBlur file, node 459:615.
-6. **Git:** commit only when Tim asks. Tim creates the GitHub repo and does the first push. No
-   secrets in the repo. The folder lives in Dropbox (Tim's call): never create git worktrees here.
+6. **Git:** commit only when Tim asks. The repo is https://github.com/tim-grove/madloop (public,
+   `main`); Tim pushes (HTTPS, a token in his Keychain). No secrets in the repo. The folder lives in Dropbox (Tim's call): never create git worktrees here.
 7. **Release notes** (CHANGELOG.md): short, one line per change, technical, no internal language.
 
 ## Tim's decisions (2026-10-15/16)
@@ -66,6 +66,7 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 | `assets/loop-stamp.png` | The LOOP stamp from the Figma (512×288, shown stretched to 170×68 in the header and 230×92 in About, rotated −15.67°, as designed) |
 | `assets/madblur-wordmark.svg`, `icon-*.svg` | About screen artwork from the Figma (the icons are inlined into index.html with `currentColor`) |
 | `tools/` | Test tools, never loaded by the page: `serve.py`, `test-helpers.js`, `unpack-lab-clips.py` |
+| `_headers` | Response headers for Cloudflare Pages |
 | `.claude/launch.json` | The two local servers (8411 Madloop, 8412 test clips); gitignored |
 
 ## How it works
@@ -124,8 +125,9 @@ Every build (any change Tim will see), not just public releases:
 3. Add a `## Build N — date` entry to `CHANGELOG.md`.
 4. Test (below), then commit when Tim says so.
 
-Hosting plan (not set up yet): Cloudflare Pages connected to the GitHub repo, at
-madloop.madblur.com (madblur.com is already on Cloudflare). Static files, no build command.
+Hosting: Cloudflare Pages connected to the GitHub repo, at madloop.madblur.com (madblur.com is
+already on Cloudflare). Static files: no framework, no build command, output directory `/` (the
+repo root). A push to `main` redeploys. `_headers` sets the response headers, as madblur.com's does.
 
 ## Testing
 
@@ -154,13 +156,12 @@ Windows if possible. **So far only Chrome on a Mac has been tested.**
 
 ## Open items
 
-- The **GitHub repo** link for About (`LINKS.github` in `app.js`; empty shows greyed out). The
-  others are set: Tim x.com/_timgrove, instagram.com/tim_grove; Madblur x.com/madblur1,
-  instagram.com/madblur1. Also the README's hard-cut vs seamless GIF.
+- About's links are all set (`LINKS` in `app.js`). Still to do: the README's hard-cut vs seamless
+  GIF; a tab icon (favicon) and a share card (og:image) for when the link is posted on X.
 - Visitor: `fonts/Visitor-README.txt` quotes Brian Kent's terms; swap in his original readme file
   if Tim has the font zip.
 - Test Safari, Firefox and Windows; test an HEVC file that needs the lead fix.
-- First commit (Tim hasn't asked yet), GitHub repo, Cloudflare Pages.
+- Cloudflare Pages: connect the repo and add madloop.madblur.com (Tim, in the dashboard).
 - Later: ProRes needs a Mac app with a Swift helper (AVFoundation); not possible on the web.
 
 ## Back to Madblur (ideas Tim may cherry-pick)

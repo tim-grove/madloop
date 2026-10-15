@@ -33,8 +33,8 @@ build the file in memory first, which caps it at what the browser will hold (a g
 
 ## Which browser
 
-A recent **Chrome or Edge** on a computer works best. Safari and Firefox work, with the limits
-above. Madloop needs WebCodecs and WebGL2. Phones are not the target.
+A recent **Chrome or Edge** on a computer works best, and is what Madloop has been tested in so
+far. Safari and Firefox should work, with the limits above. Madloop needs WebCodecs and WebGL2. Phones are not the target.
 
 What a browser can read varies: H.264 MP4 and MOV work everywhere; iPhone HEVC works in Safari and
 in Chrome on a Mac; ProRes works in Safari on a Mac at best; WebM (VP9, AV1) works in Chrome, Edge
@@ -70,5 +70,5 @@ artwork are not covered by it. Mediabunny is under the Mozilla Public License 2.
 https://github.com/Vanilagy/mediabunny). The fonts keep their own licences
 ([fonts/README.md](fonts/README.md)).
 
-Made by one designer and updated when he can. It comes as is, with no warranty and no promise of
+Made by one designer and updated when there's time. It comes as is, with no warranty and no promise of
 support.
