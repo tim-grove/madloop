@@ -16,7 +16,7 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 5, BUILD_DATE = '2026-10-16';
+const BUILD = 6, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
   github:    'https://github.com/tim-grove/madloop',
@@ -1007,14 +1007,11 @@ async function detectEncoders(){
 }
 function expLock(on){ document.querySelectorAll('.xbtn').forEach(b=>{ b.disabled = on || !clip || b.dataset.never==='1'; });
   document.querySelectorAll('#resW, #resH, #sizePreset .pickbtn').forEach(b=>{ b.disabled = on || !clip; }); }
+// The Export tab after a change: the frame count on the PNG button, the buttons locked or not.
+// (No status text in the panel, Tim 2026-10-16: progress shows under Pong's bar, the outcome as a toast.)
 function exportInfo(){
   const n=$('#expN'); if(n) n.textContent=frameCount();
-  const info=$('#exportInfo'); expLock(_exporting);
-  if(!clip){ info.textContent='Import a clip first.'; return; }
-  const {W,H,scaled}=exportSize(), N=frameCount();
-  const mb=Math.round(W*H*doc.fps*0.12*doc.loopSeconds/8/1048576);   // roughly what QUALITY_HIGH comes to
-  info.innerHTML='<b>'+doc.loopSeconds+' s</b> · '+N+' frames · '+W+' × '+H+(scaled ? ' (resized)' : '')+' · '+fmtFps(doc.fps)+' · no sound. As H.264, about '+mb+' MB. '
-    +(window.showSaveFilePicker ? 'You choose where it goes and it is written as it renders.' : 'This browser builds the file in memory first, so a very long 4K export may not fit; Chrome and Edge write straight to disk.');
+  expLock(_exporting);
 }
 function baseName(){ return (clip.name.replace(/\.[^.]+$/,'')||'clip').replace(/[^\w\- ]+/g,'').slice(0,60)+'_loop'; }
 async function runExport(kind){
@@ -1039,8 +1036,8 @@ async function runExport(kind){
     }
   }catch(e){ _exporting=false; toast('Couldn’t open that location: '+e.message); return; }
 
-  const prog=$('#exportProgress'), cancel=$('#exportCancel');
-  expLock(true); cancel.style.display=''; prog.style.display='block'; prog.textContent='Starting…';
+  const cancel=$('#exportCancel'), pongSay=t=>{ const l=$('#pongLab'); if(l) l.textContent=t; };
+  expLock(true); cancel.style.display='';
   const wasPlaying=playing; playing=false; rcReset();
   for(const v of [A.el, A.elB]) if(v){ try{ v.pause(); }catch(e){} }
   try{ pongShow(isVid ? (kind==='h265'?'H.265 MP4':'H.264 MP4') : 'PNG SEQUENCE'); }catch(e){ console.warn('[Madloop pong]', e); }
@@ -1077,8 +1074,7 @@ async function runExport(kind){
       }
       if((i%3)===0 || i===N-1){
         const el_=(performance.now()-t0)/1000, left=el_/(i+1)*(N-i-1);
-        prog.textContent='Rendering frame '+(i+1)+' / '+N+' · about '+Math.ceil(left)+' s left';
-        pongProgress(i+1, N, W+'×'+H+(isVid?'':' PNG'));
+        pongProgress(i+1, N, W+'×'+H+(isVid?'':' PNG')+(i>=3 ? ' · '+Math.ceil(left)+' S LEFT' : ''));
       }
     }
     try{ await sA.return(); }catch(e){}  try{ await sB.return(); }catch(e){}
@@ -1086,22 +1082,20 @@ async function runExport(kind){
       if(output) try{ await output.cancel(); }catch(e){}
       if(writable) try{ await writable.abort(); }catch(e){}
       if(fileHandle && fileHandle.remove) try{ await fileHandle.remove(); }catch(e){}
-      prog.textContent='Cancelled.'+(dir ? ' The frames already written are in '+dir.root.name+'/'+dir.sub+'.' : '');
+      toast('Export cancelled.'+(dir ? ' The frames already written are in '+dir.root.name+'/'+dir.sub+'.' : ''));
     } else if(isVid){
-      prog.textContent='Finishing the file…';
+      pongSay('FINISHING THE FILE…');
       await output.finalize();
-      if(writable){ prog.textContent='Done: '+fileHandle.name+' ('+N+' frames).'; done=true; }
+      if(writable){ toast('Saved '+fileHandle.name+' ('+N+' frames).'); done=true; }
       else { const blob=new Blob([target.buffer],{type:'video/mp4'});
-        prog.textContent='Done: '+N+' frames, '+fmtSize(blob.size)+'.';
         await pongDeliver(blob, name); done=true; }
-    } else if(dir){ prog.textContent='Done: '+N+' frames in '+dir.root.name+'/'+dir.sub+'.'; done=true; }
-    else { prog.textContent='Packaging '+N+' frames…'; await new Promise(r=>setTimeout(r,0));
+    } else if(dir){ toast('Saved '+N+' frames in '+dir.root.name+'/'+dir.sub+'.'); done=true; }
+    else { pongSay('PACKAGING '+N+' FRAMES…'); await new Promise(r=>setTimeout(r,0));
       const blob=makeZip(files); files.length=0;
-      prog.textContent='Done: '+N+' frames, '+fmtSize(blob.size)+'.';
       await pongDeliver(blob, name+'.zip'); done=true; }
   }catch(e){
     console.error('[Madloop export]', e);
-    prog.textContent='Export failed: '+(e && e.message ? e.message : e);
+    toast('Export failed: '+(e && e.message ? e.message : e), 8000);
     if(output) try{ await output.cancel(); }catch(x){}
     if(writable) try{ await writable.abort(); }catch(x){}
     if(fileHandle && fileHandle.remove) try{ await fileHandle.remove(); }catch(x){}   // no empty file left behind

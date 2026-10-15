@@ -2,6 +2,10 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 6 — 2026-10-16
+
+- Export tab: the summary and status text are gone. Progress and time left show under the render screen's bar; saved, cancelled and failed show as a notice.
+
 ## Build 5 — 2026-10-16
 
 - Export: Resize, with a Preset menu (Original and the common sizes below it) and Resolution W × H. Starts at the clip's own size; keeps the clip's shape; never scales up.

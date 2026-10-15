@@ -52,7 +52,8 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 - Methods: No loop, Bounce, Crossfade (default), Patterned dissolve. **Removed, do not bring back:**
   Hold frame, Speed fit, Match cut, Fade through, demo clips, the "Made by…" footer, the
   explanatory hints under the clip and the method, the timeline's Zoom and Quality menus (the
-  preview always fits, at full quality).
+  preview always fits, at full quality), the Export tab's summary and status text (progress and
+  time left show under Pong's bar; saved / cancelled / failed show as a toast).
 - Desktop first: phones get "works best on a computer" with "Try it anyway".
 - Licence MIT for the code; the names Madloop/Madblur and their artwork stay Tim's.
 
