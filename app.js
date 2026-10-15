@@ -16,7 +16,7 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 2, BUILD_DATE = '2026-10-16';
+const BUILD = 3, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
   github:    '',                            // TODO (Tim): the Madloop repo, once created
@@ -37,7 +37,7 @@ const doc = { loopSeconds:30, fps:30 };
 const P = { secIn:0, secOut:0, secAuto:1, loops:0, nlSpeed:100, nlFit:0, loopMode:3, ease:0, holdAt:0,
             pat:2, patDir:0, patShape:1, patCount:1, patRev:0, patSeed:1, patScale:100, patDetail:50, patSoft:35, xf:18 };
 let clip = null;            // the imported clip: { blob, name, size, w, h, dur, t0, srcFps, codec, label, rotation }
-let tNow = 0, playing = true;
+let tNow = 0, playing = false;   // the playhead waits for Play (Tim)
 let _exporting = false, _exportCancel = false;
 function exportCancel(){ _exportCancel = true; }   // pong.js calls this from its Cancel button
 
@@ -1120,7 +1120,14 @@ function boot(){
     };
   });
   // About: a box over the whole window
-  const about=$('#about'), aboutOpen=on=>{ about.hidden=!on; if(on) about.querySelector('.abox').focus(); };
+  // About is pressed while the box is open; the tab that was pressed comes back up when it closes
+  const about=$('#about'), aboutOpen=on=>{
+    if(on===!about.hidden) return;
+    const tabs=[...document.querySelectorAll('.tabs button[data-tab]')];
+    if(on){ about._was=tabs.find(t=>t.classList.contains('on')); tabs.forEach(t=>t.classList.remove('on')); }
+    else if(about._was) about._was.classList.add('on');
+    $('#aboutBtn').classList.toggle('on', on);
+    about.hidden=!on; if(on) about.querySelector('.abox').focus(); };
   $('#aboutVer').textContent='Madloop Build '+String(BUILD).padStart(4,'0');
   document.querySelectorAll('#about a[data-link]').forEach(a=>{ const u=LINKS[a.dataset.link];
     if(u){ a.href=u; a.target='_blank'; a.rel='noopener'; } else { a.removeAttribute('href'); a.classList.add('todo'); a.title='Link coming soon'; } });

@@ -2,6 +2,11 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 3 — 2026-10-16
+
+- The playhead starts paused.
+- The About tab shows pressed while the About screen is open.
+
 ## Build 2 — 2026-10-16
 
 - About: links to Tim Grove on X and Instagram, and Madblur on Instagram.

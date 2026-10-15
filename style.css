@@ -405,6 +405,7 @@
 #mbhHead{position:relative;height:86px;background:#000;flex:0 0 auto;overflow:hidden}
 #mbhStamp{position:absolute;left:144.42px;top:-1.56px;width:169.71px;height:67.94px;transform:rotate(-15.67deg);pointer-events:none}
 .tabs{grid-template-columns:106px 108px 106px}
+.tabs button:active{box-shadow:inset 1px 1px 1px 0 #000,inset -1px -1px 1px 0 #fff}   /* pressed while held, as well as while on */
 #left .panel{padding-bottom:20px}
 #left .panel .btn.mfbtn{width:100%;margin-top:8px}
 .panel .mfprev{flex:none;margin-top:2px}
