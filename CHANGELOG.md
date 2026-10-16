@@ -2,6 +2,12 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 9 — 2026-10-16
+
+- Below 10 fps, playback draws each frame by a jump to its exact time (both copies), so it matches the export; at 1 fps the incoming copy of a dissolve used to trail by about 0.2 s.
+- The paused preview seeks on every move. Build 8 skipped seeks within one source frame, counted with the clip's measured frame rate, so a misread rate could freeze the picture between frames.
+- The clip's frame rate is read from the typical gap between its first frames (the median), not the average, which a held frame (title card, still screen recording) dragged down: a clip opening on a 6 s hold read 12 fps, now 30.
+
 ## Build 8 — 2026-10-16
 
 - FPS now shows in the preview: playback steps at the chosen rate and shows exactly the frames the export renders (Madblur build 218). Before, FPS only changed the export.

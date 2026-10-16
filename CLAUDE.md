@@ -91,7 +91,11 @@ frame B over it in linear light (as Madblur composites); Patterned dissolve uses
 
 **Preview** (Madblur builds 443–444): two hidden `<video>` elements. The playhead runs on the clock
 but the picture snaps to the FPS grid and is drawn only when a new frame comes up (Madblur build 218,
-its FPS cap), so the preview shows exactly the frames the export renders (`tick`, `tlFrame`). While playing, each plays at
+its FPS cap), so the preview shows exactly the frames the export renders (`tick`, `tlFrame`).
+Paused, every move of the playhead is a seek (`animNudge`); don't skip seeks by the clip's measured
+frame rate (build 8 did, and a misread rate froze the picture between whole seconds). The clip's
+rate (`clipFps`) is the median gap between its first ~120 frames, not Mediabunny's average. Below
+10 fps, playback is drawn by exact jumps (`previewTimes`: `live` needs fps ≥ 10). While playing, each plays at
 the rate the loop needs and is steered (playback-rate nudges); paused, it jumps. At a cut or join
 the two copies swap places so there is no flash. **Bounce going backwards** can't be played by a
 video element, so `RC` (the Bounce buffer) decodes ~1 s at a time just ahead of the playhead with

@@ -16,7 +16,7 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 8, BUILD_DATE = '2026-10-16';
+const BUILD = 9, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
   github:    'https://github.com/tim-grove/madloop',
@@ -283,9 +283,9 @@ function animJump(v, secs){                          // one jump; its picture go
 function animNudge(secs, slot){
   const v = slot==='B' ? A.elB : A.el; if(!v) return;
   const up = slot==='B' ? 'upTB' : 'upT', flag = slot==='B' ? 'seekingB' : 'seeking';
-  // skip only when the picture would be the same source frame (a fixed 20 ms skipped real frames at 60 fps)
-  const sf=clip.srcFps||30, fr=x=>Math.floor(x*sf+1e-3);
-  if(A[flag] || fr(A[up]||0)===fr(secs)) return;
+  // Any real move is a jump. (Build 8 skipped moves within one source frame, counted with the clip's
+  // measured frame rate; when that was misread low, the paused picture only moved once a second.)
+  if(A[flag] || Math.abs((A[up]||0) - secs) < 0.002) return;
   animJump(v, secs);
 }
 let _animWatchT = 0;
@@ -409,7 +409,9 @@ function parkA(a){                                    // the video waits at the 
 function previewTimes(tL){
   if(!A.ready || A.stuck) return { xf:0, xr:0 };
   const ct = mediaClipTimes(P, clip, tL);
-  const m = P.loopMode|0, live = _mediaLive && playing;
+  // Below 10 fps each frame is drawn by a jump to its exact time, both copies: there is time for a
+  // jump between frames, and a playing video steered so rarely lags (the incoming copy of a dissolve did).
+  const m = P.loopMode|0, live = _mediaLive && playing && doc.fps >= 10;
   const pair = m===3 || m===5 || (live && (m===0 || m===1));   // while playing, the methods that cut keep a spare copy too
   if(pair){ animEnsureElB(); animPair(ct); }
   const rest = (pair && !(ct.w>0)) ? mediaSection(P, clip).a : null;   // between dissolves the incoming copy waits where the next one starts
@@ -551,8 +553,7 @@ async function importFile(file){
       throw new Error('This browser can’t decode '+(CODEC_NAMES[codec]||'this kind of')+' video'+(codec==='prores'?'. ProRes plays in Safari on a Mac at best; try converting the clip to H.264 or H.265.':'. Try the clip in Chrome, or convert it to H.264.'));
     const t0 = await track.getFirstTimestamp(), tEnd = await track.computeDuration();
     const dur = Math.max(0.05, tEnd - t0);
-    const stats = await track.computePacketStats(240).catch(()=>null);
-    const srcFps = stats && stats.averagePacketRate>0 ? stats.averagePacketRate : 30;
+    const srcFps = await clipFps(track);
     const w = await track.getDisplayWidth(), h = await track.getDisplayHeight(), rotation = await track.getRotation();
     const hdr = await track.hasHighDynamicRange().catch(()=>false);
     let blob = file;
@@ -589,6 +590,18 @@ async function importFile(file){
     if(clip) showClip();
     toast(e && e.message ? e.message : 'Madloop couldn’t read that file.', 6000);
   }finally{ try{ input && input.dispose && input.dispose(); }catch(e){} }
+}
+/* The clip's frame rate, from the typical gap between its first frames (the median), so a held
+   frame (a title card, a still stretch of a screen recording) can't drag it down the way an average
+   does. Falls back to Mediabunny's average, then 30. */
+async function clipFps(track){
+  try{ const ts=[], sink=new MB.EncodedPacketSink(track);
+    for await (const p of sink.packets(undefined, undefined, {metadataOnly:true})){ ts.push(p.timestamp); if(ts.length>=121) break; }
+    ts.sort((a,b)=>a-b); const d=[]; for(let i=1;i<ts.length;i++){ const x=ts[i]-ts[i-1]; if(x>1e-4) d.push(x); }
+    d.sort((a,b)=>a-b); const med=d[d.length>>1];
+    if(med>0 && 1/med>=1 && 1/med<=240) return 1/med; }catch(e){}
+  const st=await track.computePacketStats(240).catch(()=>null);
+  return st && st.averagePacketRate>0 ? st.averagePacketRate : 30;
 }
 function niceFps(f){   // the clip's own rate, as the export's rate: 23.976 / 29.97 / 59.94 stay exact
   for(const k of [24000/1001, 30000/1001, 60000/1001]) if(Math.abs(f-k)<0.02) return +k.toFixed(3);
