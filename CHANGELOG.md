@@ -2,6 +2,10 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 10 — 2026-10-16
+
+- Madblur's X account is @MadBlurSynth: the About link and the share card's `twitter:site` now point there (were @madblur1).
+
 ## Build 9 — 2026-10-16
 
 - Below 10 fps, playback draws each frame by a jump to its exact time (both copies), so it matches the export; at 1 fps the incoming copy of a dissolve used to trail by about 0.2 s.

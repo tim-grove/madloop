@@ -16,14 +16,14 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 9, BUILD_DATE = '2026-10-16';
+const BUILD = 10, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
   github:    'https://github.com/tim-grove/madloop',
   timX:      'https://x.com/_timgrove',
   timIG:     'https://www.instagram.com/tim_grove/',
   madblur:   'https://madblur.com',
-  madblurX:  'https://x.com/madblur1',
+  madblurX:  'https://x.com/MadBlurSynth',
   madblurIG: 'https://www.instagram.com/madblur1/',
 };
 const MB = window.Mediabunny;

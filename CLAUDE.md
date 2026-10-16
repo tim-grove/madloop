@@ -175,7 +175,8 @@ Windows if possible. **So far only Chrome on a Mac has been tested.**
 
 ## Open items
 
-- About's links are all set (`LINKS` in `app.js`); the share card is in. Still to do: the README's
+- About's links are all set (`LINKS` in `app.js`). Madblur's X is **@MadBlurSynth**; its Instagram
+  is madblur1 (not the same name). The share card is in. Still to do: the README's
   hard-cut vs seamless GIF.
 - Visitor: `fonts/Visitor-README.txt` quotes Brian Kent's terms; swap in his original readme file
   if Tim has the font zip.
