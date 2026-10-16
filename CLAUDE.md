@@ -69,6 +69,7 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 | `vendor/mediabunny-1.61.0.min.js` | Mediabunny (MPL-2.0), reads and writes MP4/MOV/WebM over WebCodecs. Unmodified; licence beside it |
 | `fonts/` | IBM Plex Mono, Geist, DSEG7, Visitor, each with its licence. See `fonts/README.md` |
 | `assets/loop-stamp.png` | The LOOP stamp from the Figma (512×288, shown stretched to 170×68 in the header and 230×92 in About, rotated −15.67°, as designed) |
+| `assets/share-card.png` | The link preview card (1200×630, Tim's Figma MadBlur 464:1172), named in the `og:` / `twitter:` tags in index.html. X and others cache it per URL: if it changes, give the file a new name |
 | `assets/madblur-wordmark.svg`, `icon-*.svg` | About screen artwork from the Figma (the icons are inlined into index.html with `currentColor`) |
 | `tools/` | Test tools, never loaded by the page: `serve.py`, `test-helpers.js`, `unpack-lab-clips.py` |
 | `_headers`, `wrangler.jsonc`, `.assetsignore` | Cloudflare: response headers, deploy settings, what stays off the site |
@@ -88,7 +89,9 @@ that give whole loops. `loopMode` numbering is Madblur's: 0 No loop, 1 Speed fit
 frame B over it in linear light (as Madblur composites); Patterned dissolve uses Madblur's
 `mbPatLate` map so one region switches at a time.
 
-**Preview** (Madblur builds 443–444): two hidden `<video>` elements. While playing, each plays at
+**Preview** (Madblur builds 443–444): two hidden `<video>` elements. The playhead runs on the clock
+but the picture snaps to the FPS grid and is drawn only when a new frame comes up (Madblur build 218,
+its FPS cap), so the preview shows exactly the frames the export renders (`tick`, `tlFrame`). While playing, each plays at
 the rate the loop needs and is steered (playback-rate nudges); paused, it jumps. At a cut or join
 the two copies swap places so there is no flash. **Bounce going backwards** can't be played by a
 video element, so `RC` (the Bounce buffer) decodes ~1 s at a time just ahead of the playhead with
@@ -153,6 +156,9 @@ In the browser console: `eval(await fetch('http://localhost:8412/…/test-helper
 `await __analyse(__test.blob)`. A loop is seamless when `seam` ≈ `median`. `__toOPFS()` tests the
 write-to-disk path; `__clearOPFS()` cleans up. `__makeRot()` makes a portrait (rotation 90) clip.
 
+Code reviews: two independent read-only passes (every control traced to preview and export; edge
+cases and failure paths) found the build-8 fixes. Repeat that before a public post.
+
 Gotchas: when the Browser pane is hidden, requestAnimationFrame stops, so playback measurements
 need a setTimeout loop that calls `previewTimes` / `view.R.draw` directly. Source clips have
 their own keyframe "pumping" (bigger frame-to-frame jumps at their keyframes); don't mistake it for
@@ -165,12 +171,18 @@ Windows if possible. **So far only Chrome on a Mac has been tested.**
 
 ## Open items
 
-- About's links are all set (`LINKS` in `app.js`). Still to do: the README's hard-cut vs seamless
-  GIF; a tab icon (favicon) and a share card (og:image) for when the link is posted on X.
+- About's links are all set (`LINKS` in `app.js`); the share card is in. Still to do: the README's
+  hard-cut vs seamless GIF.
 - Visitor: `fonts/Visitor-README.txt` quotes Brian Kent's terms; swap in his original readme file
   if Tim has the font zip.
 - Test Safari, Firefox and Windows; test an HEVC file that needs the lead fix.
 - Cloudflare: add the custom domain madloop.madblur.com to the Worker (Tim, in the dashboard).
+- No tab icon (favicon) yet.
+- Known limits, left as they are (2026-10-16 review): in-memory exports (MP4 outside Chrome/Edge,
+  any PNG .zip) have no size guard beyond the .zip estimate from frames 0–4, so a very long 4K export
+  can exhaust a tab; a clip whose first timestamp isn't 0 (some WebM/TS) may be offset between the
+  preview (`<video>` time) and the export (`t0`-based); a pinned Loops count survives trims and
+  method changes (Madblur's behaviour).
 - Later: ProRes needs a Mac app with a Swift helper (AVFoundation); not possible on the web.
 
 ## Back to Madblur (ideas Tim may cherry-pick)

@@ -16,7 +16,7 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 7, BUILD_DATE = '2026-10-16';
+const BUILD = 8, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
   github:    'https://github.com/tim-grove/madloop',
@@ -39,7 +39,7 @@ const P = { secIn:0, secOut:0, secAuto:1, loops:0, nlSpeed:100, nlFit:0, loopMod
 let clip = null;            // the imported clip: { blob, name, size, w, h, dur, t0, srcFps, codec, label, rotation }
 let tNow = 0, playing = false;   // the playhead waits for Play (Tim)
 let _exporting = false, _exportCancel = false;
-function exportCancel(){ _exportCancel = true; }   // pong.js calls this from its Cancel button
+function exportCancel(){ _exportCancel = true; if(PONG.dismiss) PONG.dismiss(); }   // pong.js's Cancel; also closes the render-complete screen
 
 /* ═════════════════════════════ THE LOOP MATHS ═════════════════════════════
    From Madblur (madblur_458, mediaSection / mediaClipTimes / mediaLoopInfo), unchanged apart from
@@ -191,7 +191,8 @@ function makeRenderer(canvas, keep){
       gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE, src);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     },
-    draw(texA, texB, xf, xr){
+    draw(texA, texB, xf, xr, Q){   // Q: the settings to draw with (an export passes the ones it started with)
+      Q = Q || P;
       const W=canvas.width, H=canvas.height;
       gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0,0,W,H);
       gl.useProgram(prog); gl.bindVertexArray(vao);
@@ -199,15 +200,15 @@ function makeRenderer(canvas, keep){
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, (xf>0 && texB) ? texB : texA); gl.uniform1i(u('uImg2'),1);
       gl.uniform1f(u('uXf'), xf>0 && texB ? xf : 0);
       gl.uniform1f(u('uAspect'), W/H);
-      const pat = (xf>0 && (P.loopMode|0)===5) ? (P.pat|0)+1 : 0;
+      const pat = (xf>0 && (Q.loopMode|0)===5) ? (Q.pat|0)+1 : 0;
       gl.uniform1i(u('uPat'), pat);
       gl.uniform1f(u('uPatR'), xr||0);
-      gl.uniform1f(u('uPatSoft'), Math.min(1,Math.max(0.03,(P.patSoft==null?35:P.patSoft)/100)));
-      if(pat===1) gl.uniform4f(u('uPatA'), P.patDir|0, 0, 0, 1);
-      else if(pat===2){ const cnt=Math.max(1,Math.round(P.patCount||1));
-        gl.uniform4f(u('uPatA'), P.patShape|0, cnt, (P.patRev|0)?1:0, mediaPatNorm(P.patShape|0, cnt, W/H)); }
+      gl.uniform1f(u('uPatSoft'), Math.min(1,Math.max(0.03,(Q.patSoft==null?35:Q.patSoft)/100)));
+      if(pat===1) gl.uniform4f(u('uPatA'), Q.patDir|0, 0, 0, 1);
+      else if(pat===2){ const cnt=Math.max(1,Math.round(Q.patCount||1));
+        gl.uniform4f(u('uPatA'), Q.patShape|0, cnt, (Q.patRev|0)?1:0, mediaPatNorm(Q.patShape|0, cnt, W/H)); }
       else gl.uniform4f(u('uPatA'), 0, 0, 0, 1);
-      gl.uniform4f(u('uPatB'), P.patSeed||1, Math.max(0.2,(P.patScale==null?100:P.patScale)/100), Math.min(1,Math.max(0,(P.patDetail==null?50:P.patDetail)/100)), 0);
+      gl.uniform4f(u('uPatB'), Q.patSeed||1, Math.max(0.2,(Q.patScale==null?100:Q.patScale)/100), Math.min(1,Math.max(0,(Q.patDetail==null?50:Q.patDetail)/100)), 0);
       gl.activeTexture(gl.TEXTURE0);
       gl.drawArrays(gl.TRIANGLES,0,3);
     },
@@ -236,10 +237,12 @@ function animStart(url){
   animReset();
   A.url = url; A.ready = false;
   const v = el('video',{muted:true, playsInline:true, preload:'auto'});
-  v.addEventListener('loadeddata', ()=>{ A.el = v; upload('A', v); A.upT = v.currentTime; A.ready = true; invalidate(); }, {once:true});
-  v.addEventListener('error', ()=>{ animStuck(v); }, {once:true});
+  v.addEventListener('loadeddata', ()=>{ if(A.url!==url){ animDrop(v); return; }   // a clip replaced before it loaded
+    A.el = v; upload('A', v); A.upT = v.currentTime; A.ready = true; invalidate(); }, {once:true});
+  v.addEventListener('error', ()=>{ if(A.url===url) animStuck(v); }, {once:true});
   v.src = url;
 }
+function animDrop(v){ try{ v.pause(); v.removeAttribute('src'); v.load(); }catch(e){} }
 function animStuck(v){
   if(A.stuck) return; A.stuck = true; A.seeking = false; A.seekingB = false;
   const er = v && v.error; console.warn('[Madloop] the preview stopped decoding'+(er && er.message ? ': '+er.message : ''));
@@ -259,12 +262,13 @@ function animPair(ct){                              // should the two copies cha
 }
 function upload(slot, v){ const hdr=clip && clip.hdr; view.R.upload(slot==='B' ? view.texB : view.texA, v, hdr ? view.cv.width : 0, hdr ? view.cv.height : 0); }
 function animEnsureElB(){
-  if(A.elB || A.elBWait || !A.url) return;
+  if(A.elB || A.elBWait || A.elBFail || !A.url) return;   // elBFail: the second copy wouldn't load; dissolves show the one copy rather than retry every frame
   A.elBWait = true;
-  const v = el('video',{muted:true, playsInline:true, preload:'auto'});
-  v.addEventListener('error', ()=>{ A.elBWait = false; if(A.el===v || A.elB===v) animStuck(v); }, {once:true});
-  v.addEventListener('loadeddata', ()=>{ A.elB = v; A.elBWait = false; upload('B', v); A.upTB = v.currentTime; invalidate(); }, {once:true});
-  v.src = A.url;
+  const url = A.url, v = el('video',{muted:true, playsInline:true, preload:'auto'});
+  v.addEventListener('error', ()=>{ if(A.url!==url) return; A.elBWait = false; if(A.el===v || A.elB===v) animStuck(v); else A.elBFail = true; }, {once:true});
+  v.addEventListener('loadeddata', ()=>{ if(A.url!==url){ animDrop(v); return; }
+    A.elB = v; A.elBWait = false; upload('B', v); A.upTB = v.currentTime; invalidate(); }, {once:true});
+  v.src = url;
 }
 function animJump(v, secs){                          // one jump; its picture goes to whichever copy the element is when it lands
   const flag = A.elB===v ? 'seekingB' : 'seeking', t0 = performance.now();
@@ -279,7 +283,9 @@ function animJump(v, secs){                          // one jump; its picture go
 function animNudge(secs, slot){
   const v = slot==='B' ? A.elB : A.el; if(!v) return;
   const up = slot==='B' ? 'upTB' : 'upT', flag = slot==='B' ? 'seekingB' : 'seeking';
-  if(A[flag] || Math.abs((A[up]||0) - secs) <= 0.02) return;
+  // skip only when the picture would be the same source frame (a fixed 20 ms skipped real frames at 60 fps)
+  const sf=clip.srcFps||30, fr=x=>Math.floor(x*sf+1e-3);
+  if(A[flag] || fr(A[up]||0)===fr(secs)) return;
   animJump(v, secs);
 }
 let _animWatchT = 0;
@@ -287,7 +293,7 @@ function animWatch(){                               // a clip nobody is drawing 
   if(_animWatchT) return;
   _animWatchT = setInterval(()=>{ const now=performance.now(); let any=false;
     for(const v of [A.el, A.elB]){ if(!v || v.paused) continue;
-      if(now-(v._mbT||0) > 600){ try{ v.pause(); }catch(e){} } else any=true; }
+      if(now-(v._mbT||0) > Math.max(600, 2500/Math.max(1,doc.fps))){ try{ v.pause(); }catch(e){} } else any=true; }   // at a low FPS the draws are far apart
     if(!any){ clearInterval(_animWatchT); _animWatchT=0; } }, 700);
 }
 function animFrames(v){                             // note each new picture a playing clip puts up
@@ -325,55 +331,70 @@ function animDrive(secs, slot, rate){                // rate = clip seconds per 
    the forward half still plays the video element, which waits, paused, at the start of the
    section for the next turn. The pictures are drawn by Mediabunny into a 2D canvas, so a turned
    phone clip comes out the right way up and HDR colours match the player. */
-const RC = { gen:0, frames:[], busy:false, key:'', need:null, input:null, sink:null };
-function rcReset(){
-  RC.gen++; RC.busy=false; RC.key=''; RC.need=null;
+const RC = { gen:0, frames:[], busy:false, key:'', need:null, input:null, sink:null, url:'', fail:'' };
+// keepInput: the same clip with a new section (a drag), so the open file and decoder stay
+function rcReset(keepInput){
+  RC.gen++; RC.busy=false; RC.key=''; RC.need=null; RC.fail='';
   for(const f of RC.frames) try{ f.bmp.close(); }catch(e){}
   RC.frames=[];
+  if(keepInput) return;
   if(RC.input) try{ RC.input.dispose(); }catch(e){}
-  RC.input=null; RC.sink=null;
+  RC.input=null; RC.sink=null; RC.url='';
 }
-function rcAt(t){                                    // the picture showing at clip time t, as the video would
-  const fr=RC.frames, dt=1/(clip.srcFps||30); let lo=0, hi=fr.length-1, best=null;
+// The picture showing at clip time t, as the video would. Each kept picture knows when the next one
+// starts (f.until), so a picture that lasts long (a screen recording, a variable frame rate) covers
+// its whole stretch instead of leaving a gap that is decoded again and again.
+function rcAt(t){
+  const fr=RC.frames; let lo=0, hi=fr.length-1, best=null;
   while(lo<=hi){ const mid=(lo+hi)>>1; if(fr[mid].t <= t+1e-4){ best=fr[mid]; lo=mid+1; } else hi=mid-1; }
-  return best && t-best.t < 1.5*dt ? best : null;
+  return best && t < best.until+1e-4 ? best : null;
 }
 function rcWant(t, rate){
   const sc=mediaSection(P,clip), w=Math.max(2,Math.min(1280, view.cv.width)), h=Math.max(2,Math.round(w*clip.h/clip.w));
   const key=clip.url+'|'+sc.a.toFixed(3)+'|'+sc.D.toFixed(3)+'|'+w+'x'+h;
-  if(key!==RC.key){ rcReset(); RC.key=key; }
+  if(key!==RC.key){ rcReset(RC.url===clip.url); RC.key=key; }
   const back=rate<0.07, L=clamp(Math.abs(rate)*1.2, 1, 3), top=sc.a+sc.D;
   RC.need={ t, a:sc.a, top, w, h, g1: back ? Math.min(t, top) : top, L: back ? L : 1 };
   // keep what's around the playhead and what's under the top turn; let the rest go
-  const keep=f=>(f.t>=t-L-0.3 && f.t<=t+0.3) || f.t>=top-1.1;
+  const keep=f=>(f.until>=t-L-0.3 && f.t<=t+0.3) || f.until>=top-1.1;   // by the stretch each picture covers, not where it starts
   if(RC.frames.some(f=>!keep(f))){ RC.frames=RC.frames.filter(f=>{ if(keep(f)) return true; try{ f.bmp.close(); }catch(e){} return false; }); }
-  if(!RC.busy) rcPump();
+  if(!RC.busy && RC.fail!==RC.key) rcPump();
 }
 async function rcPump(){
   const g=RC.gen; RC.busy=true;
   try{
-    if(!RC.sink){ const inp=openInput(clip.blob), tr=await inp.getPrimaryVideoTrack();
-      if(g!==RC.gen){ try{ inp.dispose(); }catch(e){} return; }
-      RC.input=inp; RC.sink=new MB.VideoSampleSink(tr); }
-    const dt=1/(clip.srcFps||30);
+    if(!RC.sink){ const c0=clip, inp=openInput(c0.blob), tr=await inp.getPrimaryVideoTrack();
+      if(clip!==c0 || RC.sink){ try{ inp.dispose(); }catch(e){} if(clip!==c0) return; }   // another clip, or another pump got there first
+      else { RC.input=inp; RC.sink=new MB.VideoSampleSink(tr); RC.url=c0.url; } }
+    if(g!==RC.gen) return;
+    const dt=1/(clip.srcFps||30); let lastGap=null;
     for(;;){
       if(g!==RC.gen) return;
       const n=RC.need, g0=Math.max(n.a, n.g1-n.L);
       let gap=null; for(let x=n.g1; x>=g0-1e-9; x-=dt){ if(!rcAt(x)){ gap=x; break; } }
       if(gap==null) return;                          // covered: the next frame's want() starts it again
-      const lo=Math.max(n.a, gap-1), oc=new OffscreenCanvas(n.w, n.h), ctx=oc.getContext('2d');
-      for await (const smp of RC.sink.samples(clip.t0+lo, clip.t0+gap+dt)){
+      if(lastGap!=null && Math.abs(gap-lastGap)<1e-6){ RC.fail=RC.key; return; }   // decoding didn't fill it: stop trying for this section
+      lastGap=gap;
+      const lo=Math.max(n.a, gap-1), hi=gap+dt, oc=new OffscreenCanvas(n.w, n.h), ctx=oc.getContext('2d');
+      let prev=null, whole=true;
+      for await (const smp of RC.sink.samples(clip.t0+lo, clip.t0+hi)){
         const t=smp.timestamp-clip.t0;
-        if(g===RC.gen && !RC.frames.some(f=>Math.abs(f.t-t)<1e-4)){
-          ctx.setTransform(1,0,0,-1,0,n.h);          // upside down, as the GPU wants it
-          smp.draw(ctx, 0, 0, n.w, n.h);
-          const f={ t, bmp:oc.transferToImageBitmap() };
-          let i=RC.frames.length; while(i>0 && RC.frames[i-1].t>t) i--;
-          RC.frames.splice(i, 0, f);
+        if(g===RC.gen){
+          let f=RC.frames.find(f=>Math.abs(f.t-t)<1e-4);
+          if(!f){
+            ctx.setTransform(1,0,0,-1,0,n.h);          // upside down, as the GPU wants it
+            smp.draw(ctx, 0, 0, n.w, n.h);
+            f={ t, until:t, bmp:oc.transferToImageBitmap() };
+            let i=RC.frames.length; while(i>0 && RC.frames[i-1].t>t) i--;
+            RC.frames.splice(i, 0, f);
+          }
+          if(prev) prev.until=Math.max(prev.until, t);   // the last picture lasts until this one
+          prev=f;
         }
         smp.close();
-        if(g!==RC.gen) break;
+        if(g!==RC.gen){ whole=false; break; }
       }
+      if(prev && whole) prev.until=Math.max(prev.until, hi);   // nothing else starts before the end of what was read
     }
   }catch(e){ console.warn('[Madloop] Bounce buffer', e); }
   finally{ if(g===RC.gen) RC.busy=false; }
@@ -405,11 +426,12 @@ function previewTimes(tL){
   if(ct.w>0) animDrive(ct.tB, 'B', rate); else if(rest!=null) animDrive(rest, 'B', 0);
   return { xf: (ct.w>0 && A.elB) ? ct.w : 0, xr: ct.r||0 };
 }
-function present(){
+function present(t){
   if(!clip || !view.R) return;
   layoutView();
+  if(!A.ready){ const gl=view.R.gl; gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); return; }   // a new clip loading: black, not the last clip stretched
   _mediaLive = true;
-  const b = previewTimes(tNow);
+  const b = previewTimes(t);
   _mediaLive = false;
   view.R.draw(view.texA, view.texB, b.xf, b.xr);
 }
@@ -421,7 +443,7 @@ function layoutView(){
   const box = $('#view'), cv = view.cv; if(!box) return;
   const bw = box.clientWidth-36, bh = box.clientHeight-36, dpr = window.devicePixelRatio||1;
   const fit=Math.min(bw/clip.w, bh/clip.h), cw=Math.max(16,Math.round(clip.w*fit)), ch=Math.max(16,Math.round(clip.h*fit));
-  if(cv.style.width!==cw+'px'){ cv.style.width=cw+'px'; cv.style.height=ch+'px'; }
+  if(cv.style.width!==cw+'px' || cv.style.height!==ch+'px'){ cv.style.width=cw+'px'; cv.style.height=ch+'px'; }
   const s = Math.min(1, (cw*dpr)/clip.w);
   const pw = Math.max(16, Math.round(clip.w*s)), ph = Math.max(16, Math.round(clip.h*s));
   if(cv.width!==pw || cv.height!==ph){ cv.width=pw; cv.height=ph; }
@@ -450,7 +472,7 @@ async function hevcLeadFix(file, onProgress){
       pos+=n;
     }
     if(moovAt<0 || moovSize>256*1048576) return null;
-    const u8=await rd(moovAt, moovSize), M=u8.length, dv=new DataView(u8.buffer);
+    const u8=await rd(moovAt, moovSize), M=u8.length, dv=new DataView(u8.buffer), moovHead=(dv.getUint32(0)===1) ? 16 : 8;
     const u32=p=>dv.getUint32(p), tag=p=>String.fromCharCode(u8[p],u8[p+1],u8[p+2],u8[p+3]);
     const kids=(s,e)=>{ const o=[];
       while(s+8<=e){ let n=u32(s), h=8; const t=tag(s+4);
@@ -459,7 +481,7 @@ async function hevcLeadFix(file, onProgress){
         o.push([t,s+h,s+n]); s+=n; }
       return o; };
     const one=(k,t)=>k ? kids(k[1],k[2]).find(x=>x[0]===t) : null;
-    const moov=[ 'moov', 8, M ];
+    const moov=[ 'moov', moovHead, M ];
     const samples=[]; let ls=4;
     for(const tr of kids(moov[1],moov[2])){
       if(tr[0]!=='trak') continue;
@@ -475,7 +497,8 @@ async function hevcLeadFix(file, onProgress){
       for(let c=0; c<nc && si<n; c++){
         while(e<ne && u32(sc[1]+8+12*e)<=c+1){ per=u32(sc[1]+12+12*e); e++; }
         let o = wide ? u32(co[1]+8+8*c)*4294967296+u32(co[1]+12+8*c) : u32(co[1]+8+4*c);
-        for(let k=0; k<per && si<n; k++, si++){ const s=fixed || u32(sz[1]+12+4*si); samples.push(o, s); o+=s; }
+        for(let k=0; k<per && si<n; k++, si++){ const s=fixed || u32(sz[1]+12+4*si); samples.push(o, s); o+=s;
+          if(samples.length>2e7) return null; }   // a sample table this size is broken: leave the file alone
       }
       break;   // the first video track is the one we play
     }
@@ -494,7 +517,9 @@ async function hevcLeadFix(file, onProgress){
         else if((t===6 || t===7) && irap===21) fixes.push(h, (b&0x81)|((t+2)<<1));
         q=h+nl; }
     }
-    return fixes.length ? fixes : null;
+    if(!fixes.length) return null;
+    const pairs=[]; for(let i=0;i<fixes.length;i+=2) pairs.push([fixes[i], fixes[i+1]]);   // patchedBlob needs them in file order
+    pairs.sort((x,y)=>x[0]-y[0]); return pairs.flat();
   }catch(e){ console.warn('[Madloop] HEVC check skipped', e); return null; }
 }
 // The bytes every reader is given: the user's file, with the relabelling above where needed.
@@ -532,8 +557,8 @@ async function importFile(file){
     const hdr = await track.hasHighDynamicRange().catch(()=>false);
     let blob = file;
     if(codec==='hevc'){
-      box.textContent='Checking '+name+'…';
-      const fx = await hevcLeadFix(file, f=>{ box.textContent='Checking '+name+'… '+Math.round(f*100)+'%'; });
+      if(my===_importN) box.textContent='Checking '+name+'…';
+      const fx = await hevcLeadFix(file, f=>{ if(my===_importN) box.textContent='Checking '+name+'… '+Math.round(f*100)+'%'; });
       blob = patchedBlob(file, fx);
     }
     const url = URL.createObjectURL(blob);
@@ -662,15 +687,18 @@ function stepper(value, onChange, min, max, dp){
   const dec=el('button',{type:'button',title:'Nudge down'}), inc=el('button',{type:'button',title:'Nudge up'});
   const fmt=v=>(+v).toFixed(dp||0);
   const inp=el('input',{type:'text', value:fmt(value)});
-  const set=v=>{ v=+v; if(!isFinite(v)) v=min; v=+Math.min(max,Math.max(min,v)).toFixed(dp||0); inp.value=fmt(v); fitVal(inp); onChange(v); };
+  let cur=+value;
+  const set=v=>{ v=(String(v).trim()==='') ? NaN : +v;
+    if(!isFinite(v)){ inp.value=fmt(cur); fitVal(inp); return; }   // junk or empty: the old value comes back
+    cur=v=+Math.min(max,Math.max(min,v)).toFixed(dp||0); inp.value=fmt(v); fitVal(inp); onChange(v); };
   fitVal(inp);
-  dec.onclick=(ev)=>set((+inp.value||0)-(ev&&ev.shiftKey?10:1));
-  inc.onclick=(ev)=>set((+inp.value||0)+(ev&&ev.shiftKey?10:1));
+  dec.onclick=(ev)=>set(cur-(ev&&ev.shiftKey?10:1));
+  inc.onclick=(ev)=>set(cur+(ev&&ev.shiftKey?10:1));
   inp.addEventListener('keydown',(ev)=>{ if(ev.key!=='ArrowUp' && ev.key!=='ArrowDown') return;
-    ev.preventDefault(); ev.stopPropagation(); set((+inp.value||0)+(ev.key==='ArrowUp'?1:-1)*(ev.shiftKey?10:1)); });
+    ev.preventDefault(); ev.stopPropagation(); set(cur+(ev.key==='ArrowUp'?1:-1)*(ev.shiftKey?10:1)); });
   inp.onchange=()=>set(inp.value);
   wrap.append(inp,dec,inc);
-  wrap.setValue=v=>{ if(document.activeElement!==inp){ inp.value=fmt(v); fitVal(inp); } };
+  wrap.setValue=v=>{ cur=+v; if(document.activeElement!==inp){ inp.value=fmt(v); fitVal(inp); } };
   return wrap;
 }
 const RESET_ICON = '<svg viewBox="0 0 15 14" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 6.99947C15.0002 8.83994 14.2836 10.6064 13.0053 11.9166C11.727 13.2268 9.9899 13.9752 8.16995 14H8.07692C6.30883 14.0044 4.60693 13.3202 3.32452 12.0894C3.26945 12.0368 3.22518 11.9736 3.19423 11.9037C3.16329 11.8337 3.14627 11.7582 3.14416 11.6816C3.14206 11.605 3.15489 11.5287 3.18194 11.4571C3.20899 11.3855 3.24972 11.32 3.3018 11.2643C3.35389 11.2086 3.41631 11.1639 3.48551 11.1326C3.55471 11.1013 3.62932 11.0841 3.70509 11.0819C3.78086 11.0798 3.85631 11.0928 3.92712 11.1201C3.99793 11.1475 4.06272 11.1887 4.11779 11.2413C4.94264 12.0279 5.97843 12.5513 7.09574 12.7462C8.21306 12.941 9.36238 12.7985 10.4001 12.3367C11.4379 11.8748 12.318 11.114 12.9306 10.1493C13.5432 9.18459 13.8612 8.05872 13.8447 6.91236C13.8282 5.76599 13.478 4.64996 12.8379 3.70366C12.1978 2.75737 11.2961 2.02278 10.2455 1.59165C9.19492 1.16053 8.04199 1.05198 6.93075 1.27958C5.81951 1.50718 4.79923 2.06083 3.99736 2.87136C3.99146 2.8778 3.9852 2.88389 3.97861 2.88959L2.06178 4.66597H4.03846C4.19147 4.66597 4.33821 4.72743 4.44641 4.83684C4.5546 4.94624 4.61538 5.09462 4.61538 5.24934C4.61538 5.40407 4.5546 5.55245 4.44641 5.66185C4.33821 5.77126 4.19147 5.83272 4.03846 5.83272H0.576923C0.423914 5.83272 0.277171 5.77126 0.168977 5.66185C0.0607828 5.55245 0 5.40407 0 5.24934V1.74909C0 1.59437 0.0607828 1.44599 0.168977 1.33658C0.277171 1.22718 0.423914 1.16572 0.576923 1.16572C0.729933 1.16572 0.876675 1.22718 0.984869 1.33658C1.09306 1.44599 1.15385 1.59437 1.15385 1.74909V3.92217L3.19111 2.04078C4.16032 1.06453 5.39385 0.400522 6.73596 0.13258C8.07807 -0.135362 9.4686 0.00477348 10.732 0.535296C11.9954 1.06582 13.0751 1.96294 13.8347 3.11342C14.5943 4.2639 14.9998 5.61615 15 6.99947Z" fill="currentColor"/></svg>';
@@ -689,14 +717,16 @@ function sliderBlock(box, label, key, min, max, step, def, dp){
         valB=el('input',{className:'pval',type:'text',value:fmt(P[key])}), incB=el('button',{type:'button',title:'Nudge up'});
   pstep.append(valB, decB, incB); ctl.append(reset, pstep); fitVal(valB);
   block.append(top, bot, ctl); box.appendChild(block);
-  const setVal=v=>{ v=+Math.min(max,Math.max(min,v)).toFixed(dp); P[key]=v; rng.value=v; if(document.activeElement!==valB){ valB.value=fmt(v); fitVal(valB); } changed(); };
+  const setVal=(v,typed)=>{ if(!isFinite(v)){ valB.value=fmt(P[key]); fitVal(valB); return; }   // junk: the old value comes back
+    v=+Math.min(max,Math.max(min,v)).toFixed(dp); P[key]=v; rng.value=v;
+    if(typed || document.activeElement!==valB){ valB.value=fmt(v); fitVal(valB); } changed(); };
   rng.oninput=()=>setVal(+rng.value);
   reset.onclick=()=>setVal(def);
   const nudge=(dir,ev)=>setVal(P[key]+dir*((ev&&ev.shiftKey)?step*10:step));
   decB.onclick=(ev)=>nudge(-1,ev); incB.onclick=(ev)=>nudge(1,ev);
   valB.addEventListener('keydown',(ev)=>{ if(ev.key!=='ArrowUp' && ev.key!=='ArrowDown') return;
     ev.preventDefault(); ev.stopPropagation(); nudge(ev.key==='ArrowUp'?1:-1, ev); valB.value=fmt(P[key]); fitVal(valB); });
-  valB.onchange=()=>setVal(+valB.value);
+  valB.onchange=()=>setVal(valB.value.trim()==='' ? NaN : +valB.value, true);
 }
 let _toastT=0;
 function toast(msg, ms){ const t=$('#mbToast'); t.textContent=msg; t.classList.add('on'); clearTimeout(_toastT); _toastT=setTimeout(()=>t.classList.remove('on'), ms||4000); }
@@ -793,10 +823,10 @@ function mediaSectionUI(box){
     const pct=Math.round(inf.speed*100), off=Math.abs(inf.speed-1);
     spVal.innerHTML='<b class="'+(off<0.005?'true':(inf.speed<0.67||inf.speed>1.5)?'far':'')+'">'+pct+'%</b>';
     spVal.title= off<0.005 ? 'The clip plays at its true speed' : inf.speed<1 ? 'The clip is slowed to fit' : 'The clip is sped up to fit';
-    if(document.activeElement!==spRng) spRng.value=Math.max(10,Math.min(400,pct));
+    if(!spRng._drag) spRng.value=Math.max(10,Math.min(400,pct));
     const wholeN=Math.abs(inf.n-Math.round(inf.n))<1e-6;
     lpVal.textContent= inf.free ? (wholeN ? String(Math.round(inf.n)) : inf.n.toFixed(2)+' · not whole') : (inf.n+(P.loops>0?'':' · auto'));
-    lpRng.max=Math.max(32, Math.round(inf.n)); if(document.activeElement!==lpRng) lpRng.value=Math.max(1,Math.round(inf.n));
+    lpRng.max=Math.max(32, Math.round(inf.n)); if(!lpRng._drag) lpRng.value=Math.max(1,Math.round(inf.n));
   };
   _secPlace=place; _secRedraw=()=>{ if(cv.isConnected){ drawStrip(); place(); } };
   requestAnimationFrame(()=>{ if(cv.isConnected){ drawStrip(); place(); } });
@@ -813,6 +843,7 @@ function mediaSectionUI(box){
     h.addEventListener('pointerdown',e=>{ if(kind==='slide' && e.target!==frame) return;
       const sc=mediaSection(P,s); on={ x:e.clientX, a:sc.a, b:sc.a+sc.D }; try{ h.setPointerCapture(e.pointerId); }catch(x){} e.preventDefault(); e.stopPropagation(); frame.classList.add('drag'); });
     h.addEventListener('pointermove',e=>{ if(!on) return;
+      if(!on.moved){ if(Math.abs(e.clientX-on.x)<2) return; on.moved=true; }   // a click, or a jitter, keeps the automatic section
       const dt=(e.clientX-on.x)/(cv.clientWidth||1)*dur; let a=on.a, b=on.b;
       if(kind==='in') a=Math.min(Math.max(0,on.a+dt), on.b-MINL);
       else if(kind==='out') b=Math.max(Math.min(dur,on.b+dt), on.a+MINL);
@@ -840,19 +871,24 @@ function mediaSectionUI(box){
     changed(); };
   const reset=()=>{ const inf=mediaLoopInfo(); if(inf.free){ leaveSpeedFit(); P.nlFit=0; P.nlSpeed=100; } else P.loops=0; changed(); };
   spRng.ondblclick=reset; lpRng.ondblclick=reset;
+  for(const r of [spRng, lpRng]){   // while dragged the thumb follows the pointer; let go and it settles on the value that applied
+    r.addEventListener('pointerdown', ()=>{ r._drag=true; });
+    r.addEventListener('change', ()=>{ r._drag=false; place(); }); }
 }
 
 /* ═════════════════════════════ THE TIMELINE (Madblur build 163 / 422) ═════════════════════════════ */
-function tlFrame(){ const N=frameCount(); return (((Math.round(tNow*N)%N)+N)%N); }
-function tlSetPlaying(p){ playing=p; $('#timeline').classList.toggle('playing', !!p); _lastNow=performance.now(); invalidate(); }
-function tlStep(dir){ const N=frameCount(); tNow=((((Math.round(tNow*N)+dir)%N)+N)%N)/N; tlSetPlaying(false); }
+// the frame on screen: the playhead snapped down to the FPS grid (Madblur build 218), as the export renders it
+function tlFrame(){ const N=frameCount(); return (((Math.floor(tNow*N+1e-6)%N)+N)%N); }
+function tlSetPlaying(p){ if(p && !clip) return; playing=p; $('#timeline').classList.toggle('playing', !!p); _lastNow=performance.now(); invalidate(); }
+function tlStep(dir){ const N=frameCount(); tNow=((((tlFrame()+dir)%N)+N)%N)/N; tlSetPlaying(false); }
 function tlUpdate(){
   const read=$('#tlRead'); const N=frameCount(), pct=(tNow*100);
   $('#tlHead').style.left=pct+'%'; $('#tlFill').style.width=pct+'%';
-  const f=tlFrame(), fps=Math.max(1,Math.round(doc.fps||30)), secs=tNow*doc.loopSeconds;
+  const f=tlFrame(), fps=Math.max(1,Math.round(doc.fps||30)), secs=f/Math.max(1,doc.fps);
   const p2=n=>String(n).padStart(2,'0');
   read.querySelector('.fr').textContent='FRAME '+String(f).padStart(4,'0');
-  read.querySelector('.tc').textContent=p2(Math.floor(secs/60))+':'+p2(Math.floor(secs%60))+':'+p2(f%fps);
+  const sFr=f-Math.ceil(Math.floor(secs+1e-9)*doc.fps-1e-6);   // frames since this second began (29.97 too)
+  read.querySelector('.tc').textContent=p2(Math.floor(secs/60))+':'+p2(Math.floor(secs%60))+':'+p2(Math.max(0,Math.min(fps-1,sFr)));
 }
 function tlBuildTicks(){
   const box=$('#tlTicks'); box.innerHTML='';
@@ -872,7 +908,7 @@ function tlBuildTicks(){
 function initTimeline(){
   const track=$('#tlTrack');
   const scrubTo=(clientX)=>{ const r=track.getBoundingClientRect();
-    const f=Math.min(1,Math.max(0,(clientX-r.left)/Math.max(1,r.width))), N=frameCount(); tNow=(Math.round(f*N)%N)/N; invalidate(); };
+    const f=Math.min(1,Math.max(0,(clientX-r.left)/Math.max(1,r.width))), N=frameCount(); tNow=Math.min(N-1, Math.round(f*N))/N; invalidate(); };
   let scrubbing=false;
   track.addEventListener('mousedown',(e)=>{ scrubbing=true; tlSetPlaying(false); scrubTo(e.clientX); e.preventDefault(); });
   window.addEventListener('mousemove',(e)=>{ if(scrubbing) scrubTo(e.clientX); });
@@ -884,7 +920,6 @@ function initTimeline(){
   window.addEventListener('keydown',(e)=>{
     const t=e.target;
     if(t && (t.tagName==='TEXTAREA' || t.isContentEditable || (t.tagName==='INPUT' && !/^(range|checkbox|radio|button|color)$/.test(t.type)))) return;
-    if(t && (t.tagName==='INPUT'||t.tagName==='SELECT')) return;
     if(PONG.on || !$('#about').hidden) return;
     if(e.code==='Space'){ e.preventDefault(); tlSetPlaying(!playing); }
     else if(e.key==='ArrowLeft'){ e.preventDefault(); tlStep(-1); }
@@ -896,12 +931,17 @@ function initTimeline(){
 }
 
 /* ═════════════════════════════ THE LOOP: one clock for everything ═════════════════════════════ */
-let _lastNow = performance.now();
+/* Madblur build 218 (its FPS cap, on by default): the playhead runs on the clock, but the picture
+   shows exactly the frames an export renders: it snaps down to the FPS grid and is only drawn when
+   a new frame comes up. So 12 fps looks like 12 fps, as the export will. */
+let _lastNow = performance.now(), _shownF = -1;
 function tick(now){
   requestAnimationFrame(tick);
-  if(playing && !_exporting){ tNow = (tNow + (now-_lastNow)/1000/(doc.loopSeconds||30)) % 1; _dirty = true; }
+  if(playing && !_exporting){ tNow = (tNow + (now-_lastNow)/1000/(doc.loopSeconds||30)) % 1; }
   _lastNow = now;
-  if(_dirty && !_exporting && clip){ _dirty = false; present(); }
+  const f = tlFrame();
+  if(f !== _shownF) _dirty = true;
+  if(_dirty && !_exporting && clip){ _dirty = false; _shownF = f; present(f/frameCount()); }
   tlUpdate();
 }
 
@@ -922,11 +962,14 @@ async function* serveFrames(R, track, times, pool, W, H, scaled){
   // HDR frames take the same route, for the colour reason in makeRenderer's upload, and so do
   // resized ones: the 2D canvas scales down smoothly, where the GPU's plain sampling would shimmer.
   let flat=null;
+  // An odd-sized clip (1081 px) at Original also goes this way: drawn at its own size into the even
+  // canvas, it loses its last row instead of being stretched (which would soften every pixel).
   const up = (tex, s)=>{
-    if(s.rotation || s.flip || clip.hdr || scaled){
-      if(!flat){ flat=new OffscreenCanvas(scaled ? W : s.displayWidth, scaled ? H : s.displayHeight); flat.ctx=flat.getContext('2d');
+    const odd = !scaled && (s.displayWidth!==W || s.displayHeight!==H);
+    if(s.rotation || s.flip || clip.hdr || scaled || odd){
+      if(!flat){ flat=new OffscreenCanvas(W, H); flat.ctx=flat.getContext('2d');
         flat.ctx.imageSmoothingEnabled=true; flat.ctx.imageSmoothingQuality='high'; }
-      s.draw(flat.ctx, 0, 0, flat.width, flat.height); R.upload(tex, flat); return; }
+      s.draw(flat.ctx, 0, 0, scaled ? W : s.displayWidth, scaled ? H : s.displayHeight); R.upload(tex, flat); return; }
     const vf=s.toVideoFrame(); try{ R.upload(tex, vf); } finally { vf.close(); } };
   let i=0; const n=times.length;
   while(i<n){
@@ -939,13 +982,14 @@ async function* serveFrames(R, track, times, pool, W, H, scaled){
       // forward: ask for each distinct time once, hand the same texture out for repeats
       const uniq=[]; for(let k=i;k<j;k++) if(!uniq.length || times[k]>uniq[uniq.length-1]+1e-9) uniq.push(times[k]);
       const it = sink.samplesAtTimestamps(uniq)[Symbol.asyncIterator]();
-      let have=-1, last=null;
-      for(let k=i;k<j;k++){
-        if(last==null || times[k]>last+1e-9){ const r=await it.next(); have++; last=times[k];
-          if(r.value){ up(pool[0], r.value); r.value.close(); } }
-        yield pool[0];
-      }
-      try{ await it.return(); }catch(e){}
+      let last=null;
+      try{
+        for(let k=i;k<j;k++){
+          if(last==null || times[k]>last+1e-9){ const r=await it.next(); last=times[k];
+            if(r.value){ up(pool[0], r.value); r.value.close(); } }
+          yield pool[0];
+        }
+      }finally{ try{ await it.return(); }catch(e){} }   // also when the export stops part way, so the decoder's frames are let go
     } else {
       const K = pool.length;
       for(let w=i; w<j; w+=K){
@@ -961,7 +1005,8 @@ async function* serveFrames(R, track, times, pool, W, H, scaled){
 /* The export's size: the clip's own, or Resize's width with the clip's shape. Never larger than the
    clip (scaling up adds nothing) and always even, as the encoders need. */
 function exportSize(outW){
-  const ev=n=>Math.max(16, n-(n&1)), w=outW==null ? doc.outW : outW;
+  const ev=n=>Math.max(16, n-(n&1)), w0=outW==null ? doc.outW : outW;
+  const w=w0>0 ? Math.max(w0, 16*clip.w/Math.min(clip.w, clip.h)) : w0;   // the short side stays at least 16, so the shape holds
   if(!(w>0) || w>=clip.w-1) return { W: ev(clip.w), H: ev(clip.h), scaled:false };
   return { W: ev(Math.round(w)), H: ev(Math.round(w*clip.h/clip.w)), scaled:true };
 }
@@ -1022,13 +1067,18 @@ async function runExport(kind){
   const N=frameCount(), fps=doc.fps, {W,H,scaled}=exportSize();
   const isVid = kind==='h264' || kind==='h265';
   const name = baseName()+(isVid ? '.mp4' : '');   // PNG: the folder's name, or the .zip's
+  if(kind==='pngzip' && N>65535){ toast('A .zip holds at most 65,535 frames; this is '+N+'. Lower the FPS or Loop seconds, or export to a folder or an MP4.', 8000); return; }
   // where it goes: picked first, so a cancelled picker costs nothing
-  let fileHandle=null, writable=null, dir=null;
+  let fileHandle=null, writable=null, dir=null, wasEmpty=true;
   _exporting=true; _exportCancel=false;
+  if(isVid){   // the encoder check at boot is for 1080p; this size may be beyond what the encoder takes
+    let can=false; try{ can=await MB.canEncodeVideo(kind==='h265'?'hevc':'avc', {width:W, height:H}); }catch(e){}
+    if(!can){ _exporting=false; toast('This browser can’t encode '+(kind==='h265'?'H.265':'H.264')+' at '+W+' × '+H+'. Pick a smaller size under Resize'+(kind==='h265'?', or export H.264':'')+'.', 8000); return; } }
   try{
     if(isVid && window.showSaveFilePicker){
       try{ fileHandle=await showSaveFilePicker({ suggestedName:name, types:[{ description:'MP4 video', accept:{'video/mp4':['.mp4']} }] }); }
       catch(e){ _exporting=false; return; }
+      try{ wasEmpty=(await fileHandle.getFile()).size===0; }catch(e){ wasEmpty=false; }   // a new file, or one being replaced?
       writable=await fileHandle.createWritable();
     }
     if(kind==='pngdir'){
@@ -1041,11 +1091,13 @@ async function runExport(kind){
 
   const cancel=$('#exportCancel'), pongSay=t=>{ const l=$('#pongLab'); if(l) l.textContent=t; };
   expLock(true); cancel.style.display='';
+  // the Loop tab is locked while rendering, and the blend draws with the settings as they were now
+  const loopPanel=$('[data-panel="loop"]'); loopPanel.inert=true; const P0={...P};
   const wasPlaying=playing; playing=false; rcReset();
   for(const v of [A.el, A.elB]) if(v){ try{ v.pause(); }catch(e){} }
   try{ pongShow(isVid ? (kind==='h265'?'H.265 MP4':'H.264 MP4') : 'PNG SEQUENCE'); }catch(e){ console.warn('[Madloop pong]', e); }
   const cv=el('canvas',{width:W,height:H}); let R=null, input=null, output=null, done=false, note='';
-  const files=[]; let zipBytes=0;
+  const files=[]; let zipBytes=0, sA=null, sB=null, keep=false;
   try{
     R=makeRenderer(cv, true);
     input=openInput(clip.blob);
@@ -1053,10 +1105,13 @@ async function runExport(kind){
     const ts=exportTimes(N);
     const K=Math.max(2, Math.min(24, Math.floor(512*1048576/(W*H*4))));   // backward windows: about half a gigabyte of frames at most
     const poolA=Array.from({length:K}, ()=>R.newTex()), poolB=Array.from({length:K}, ()=>R.newTex());
-    const sA=serveFrames(R, track, ts.a, poolA, W, H, scaled), sB=serveFrames(R, track, ts.b, poolB, W, H, scaled);
+    sA=serveFrames(R, track, ts.a, poolA, W, H, scaled); sB=serveFrames(R, track, ts.b, poolB, W, H, scaled);
     let source=null, target=null;
     if(isVid){
-      target = writable ? new MB.StreamTarget(writable, {chunked:true}) : new MB.BufferTarget();
+      // Mediabunny writes through this go-between, so a cancelled or failed export is thrown away
+      // (abort) instead of saved (close): a file the user chose to replace is then left as it was.
+      const toFile = writable && new WritableStream({ write:c=>writable.write(c), close:()=>keep ? writable.close() : writable.abort(), abort:r=>writable.abort(r) });
+      target = toFile ? new MB.StreamTarget(toFile, {chunked:true}) : new MB.BufferTarget();
       output = new MB.Output({ format:new MB.Mp4OutputFormat({ fastStart: writable ? false : 'in-memory' }), target });
       source = new MB.CanvasSource(cv, { codec: kind==='h265'?'hevc':'avc', bitrate: MB.QUALITY_HIGH, keyFrameInterval: 2 });
       output.addVideoTrack(source, { frameRate: fps });
@@ -1066,12 +1121,14 @@ async function runExport(kind){
     for(let i=0;i<N;i++){
       if(_exportCancel){ note='Cancelled.'; break; }
       const ra=await sA.next(), rb=await sB.next();
-      R.draw(ra.value, rb.value, ts.ws[i], ts.rs[i]);
+      if(R.gl.isContextLost()) throw new Error('the graphics card dropped Madloop’s drawing (often short of memory). Try a smaller size under Resize, or reload.');
+      R.draw(ra.value, rb.value, ts.ws[i], ts.rs[i], P0);
       if(isVid) await source.add(i/fps, 1/fps);
       else {
         const blob=await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error('the browser’s PNG encoder returned nothing (likely out of memory)')),'image/png'));
         const fname=baseName()+'_'+String(i).padStart(String(N-1).length,'0')+'.png';
-        if(dir){ const fh=await dir.h.getFileHandle(fname,{create:true}), w=await fh.createWritable(); await w.write(blob); await w.close(); }
+        if(dir){ const fh=await dir.h.getFileHandle(fname,{create:true}), w=await fh.createWritable();
+          try{ await w.write(blob); await w.close(); }catch(e){ try{ await w.abort(); }catch(x){} throw e; } }
         else { const data=new Uint8Array(await blob.arrayBuffer()); files.push({name:fname, data}); zipBytes+=data.length;
           if(i===4 && zipBytes/5*N > 1.6*1073741824) throw new Error('this sequence would be about '+fmtSize(zipBytes/5*N)+' as a .zip, more than a browser can hold. Use Chrome or Edge to write the frames straight into a folder, or export an MP4.'); }
       }
@@ -1084,11 +1141,11 @@ async function runExport(kind){
     if(_exportCancel){
       if(output) try{ await output.cancel(); }catch(e){}
       if(writable) try{ await writable.abort(); }catch(e){}
-      if(fileHandle && fileHandle.remove) try{ await fileHandle.remove(); }catch(e){}
+      if(wasEmpty && fileHandle && fileHandle.remove) try{ await fileHandle.remove(); }catch(e){}   // only a file this export made
       toast('Export cancelled.'+(dir ? ' The frames already written are in '+dir.root.name+'/'+dir.sub+'.' : ''));
     } else if(isVid){
       pongSay('FINISHING THE FILE…');
-      await output.finalize();
+      keep=true; await output.finalize();
       if(writable){ toast('Saved '+fileHandle.name+' ('+N+' frames).'); done=true; }
       else { const blob=new Blob([target.buffer],{type:'video/mp4'});
         await pongDeliver(blob, name); done=true; }
@@ -1099,14 +1156,16 @@ async function runExport(kind){
   }catch(e){
     console.error('[Madloop export]', e);
     toast('Export failed: '+(e && e.message ? e.message : e), 8000);
+    keep=false;
+    if(sA) try{ await sA.return(); }catch(x){}  if(sB) try{ await sB.return(); }catch(x){}   // let the decoders go
     if(output) try{ await output.cancel(); }catch(x){}
     if(writable) try{ await writable.abort(); }catch(x){}
-    if(fileHandle && fileHandle.remove) try{ await fileHandle.remove(); }catch(x){}   // no empty file left behind
+    if(wasEmpty && fileHandle && fileHandle.remove) try{ await fileHandle.remove(); }catch(x){}   // no empty file left behind; a replaced one stays as it was
   }finally{
     pongHide();
     try{ input && input.dispose && input.dispose(); }catch(e){}
     if(R) R.destroy();
-    _exporting=false; expLock(false); cancel.style.display='none';
+    _exporting=false; expLock(false); cancel.style.display='none'; loopPanel.inert=false;
     playing=wasPlaying; $('#timeline').classList.toggle('playing', !!playing); _lastNow=performance.now(); invalidate();
   }
   return done;
@@ -1121,14 +1180,14 @@ function makeZip(files){
   const T=0, D=0x21;   // fixed dos time/date → byte-stable zips
   for(const f of files){
     const name=enc.encode(f.name), data=f.data, crc=crc32(data);
-    const lf=[].concat([0x50,0x4b,0x03,0x04], u16(20),u16(0),u16(0), u16(T),u16(D),
+    const lf=[].concat([0x50,0x4b,0x03,0x04], u16(20),u16(0x0800),u16(0), u16(T),u16(D),   // 0x0800: names are UTF-8
       u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
     parts.push(new Uint8Array(lf), name, data);
     central.push({name,crc,size:data.length,offset}); offset += lf.length+name.length+data.length;
   }
   const cd=[]; let cdSize=0;
   for(const c of central){
-    const rec=[].concat([0x50,0x4b,0x01,0x02], u16(20),u16(20),u16(0),u16(0), u16(T),u16(D),
+    const rec=[].concat([0x50,0x4b,0x01,0x02], u16(20),u16(20),u16(0x0800),u16(0), u16(T),u16(D),
       u32(c.crc), u32(c.size), u32(c.size), u16(c.name.length), u16(0),u16(0),u16(0),u16(0), u32(0), u32(c.offset));
     const b=new Uint8Array(rec.length+c.name.length); b.set(rec,0); b.set(c.name,rec.length); cd.push(b); cdSize+=b.length;
   }
@@ -1168,6 +1227,12 @@ function boot(){
   view.cv=cv;
   try{ view.R=makeRenderer(cv, false); view.texA=view.R.newTex(); view.texB=view.R.newTex(); }
   catch(e){ toast('Madloop needs WebGL2, which this browser doesn’t have.', 10000); console.error(e); }
+  // the graphics card can drop the drawing context (short of memory, a driver reset): build it again when it comes back
+  cv.addEventListener('webglcontextlost', e=>{ e.preventDefault(); });
+  cv.addEventListener('webglcontextrestored', ()=>{
+    try{ view.R=makeRenderer(cv, false); view.texA=view.R.newTex(); view.texB=view.R.newTex();
+      if(A.el && A.el.readyState>=2) upload('A', A.el); if(A.elB && A.elB.readyState>=2) upload('B', A.elB); rcReset(); invalidate(); }
+    catch(e){ toast('The preview lost its drawing context. Reload the page.', 10000); } });
   if(typeof ResizeObserver==='function') new ResizeObserver(()=>invalidate()).observe(viewBox);
   // import
   const fileIn=$('#fileIn');

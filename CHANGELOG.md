@@ -2,6 +2,25 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 8 — 2026-10-16
+
+- FPS now shows in the preview: playback steps at the chosen rate and shows exactly the frames the export renders (Madblur build 218). Before, FPS only changed the export.
+- Share card for links (Open Graph / X `summary_large_image`), from Tim's Figma (MadBlur 464:1172).
+- After a full code review:
+  - Typing junk into a value box (Loop seconds, any method setting) restores the previous value instead of setting 1 s or breaking the loop; out-of-range values show what was applied.
+  - Paused frame stepping at high FPS always shows the right frame (it skipped some at 60 fps).
+  - Space and ← → drive the timeline even after a slider was touched; Speed and Loops thumbs settle on the applied value.
+  - Scrubbing to the right end stays on the last frame; the timecode counts frames correctly at 29.97; Play does nothing without a clip; a click on the section no longer turns off the automatic section.
+  - The Loop tab is locked while exporting, and the export uses the settings it started with.
+  - The render-complete screen can be closed without downloading (Esc or the Export tab's Cancel).
+  - Cancelling an MP4 export in Chrome leaves a file you chose to replace untouched; failed or cancelled exports release their decoders.
+  - The export checks the encoder can take the chosen size before starting.
+  - Replacing a clip with one of another shape no longer squashes the preview, and no longer flashes the old clip.
+  - Bounce on variable-frame-rate clips (screen recordings) no longer decodes the same second over and over; dragging the section while Bounce plays keeps the file open.
+  - Odd-sized clips (e.g. 1081 px) lose their last row at Original instead of being softened by a 1 px stretch.
+  - .zip: UTF-8 file names; more than 65,535 frames refused up front. Folder PNG writes clean up after a failed write.
+  - HEVC check: hardened against unusual files. The preview rebuilds itself if the graphics card drops its context.
+
 ## Build 7 — 2026-10-16
 
 - Exports are named after the clip with `_Madloop` added: `IMG_1164.MOV` → `IMG_1164_Madloop.mp4` (PNG: a `IMG_1164_Madloop` folder or .zip). Only characters a file name can't hold are replaced.

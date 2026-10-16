@@ -85,7 +85,7 @@ function pongCore(){
   }
   return { st:st, serve:serve, step:step, draw:draw };
 }
-const PONG = { on:false, raf:0, worker:null, workerUrl:null, core:null, cv:null,
+const PONG = { on:false, raf:0, worker:null, workerUrl:null, core:null, cv:null, dismiss:null,
                input:{ py:null, keyDir:0 }, last:0 };
 function pongFreshCanvas(){
   // transferControlToOffscreen is one-way for a canvas element, so every session starts
@@ -179,8 +179,12 @@ function pongDeliver(blob, filename, doneLabel){
     const cb=$('#pongCancel');
     cb.textContent='DOWNLOAD '+filename;
     cb.classList.add('dl');
-    const fin=(doSave)=>{ if(doSave) save();
+    // Madloop: the screen can also be closed without downloading (Esc, or the Export tab's Cancel)
+    const onKey=(e)=>{ if(e.key==='Escape'){ e.preventDefault(); fin(false); } };
+    const fin=(doSave)=>{ if(!PONG.dismiss) return; PONG.dismiss=null; window.removeEventListener('keydown', onKey, true);
+      if(doSave) save();
       resolve(); };
+    PONG.dismiss=()=>fin(false); window.addEventListener('keydown', onKey, true);
     cb.onclick=()=>fin(true);
   });
 }
