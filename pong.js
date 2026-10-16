@@ -7,14 +7,13 @@ function pongCore(){
   var PH=0.20;                                   // BOTH paddles — equal court, equal gear (build 243: Tim
                                                  // killed the handicaps; smaller = accuracy matters)
   var st={ py:.5, ay:.5, tgt:null, pv:0, bx:.5, by:.5, vx:.36, vy:.10, ps:0, as:0,
-           volley:0, serveT:0, aiTgt:.5, think:0, fps:0, fA:0, fN:0 };
+           volley:0, serveT:0, aiTgt:.5, think:0 };
   function spd(){ return st.volley>=12 ? 1.45 : st.volley>=4 ? 1.22 : 1; }     // 4th/12th-volley steps
   function ang(){ return st.volley>=12 ? .38 : st.volley>=4 ? .32 : .26; }
   function serve(dir, now){ st.bx=.5; st.by=.5; st.volley=0; st.serveT=now+600;
     st.vx=.36*dir; st.vy=(Math.random()<.5?-1:1)*(.07+.09*Math.random()); st.think=0; st.aiTgt=.5; }
   function foldY(y){ var sp=0.96, m=(y-0.02)%(2*sp); if(m<0)m+=2*sp; return 0.02+(m<=sp?m:2*sp-m); }
   function step(dt, now, input){
-    st.fA+=dt; st.fN++; if(st.fA>=0.5){ st.fps=Math.min(99,Math.round(st.fN/st.fA)); st.fA=0; st.fN=0; }
     var py0=st.py;
     if(input.py!=null) st.tgt=Math.max(PH/2, Math.min(1-PH/2, input.py));
     if(input.keyDir){ st.tgt=null; st.py=Math.max(PH/2, Math.min(1-PH/2, st.py+input.keyDir*1.1*dt)); }
@@ -82,9 +81,7 @@ function pongCore(){
     if(now>=st.serveT || (Math.floor(now/150)%2)===0){
       cx.fillStyle='#E4CD5C'; cx.fillRect(st.bx*W-4, st.by*H-4, 8, 8);
     }
-    // tiny dim fps meter, bottom-left — an honest diagnostic of what the game really achieves
-    if(st.fps>0){ cx.fillStyle='#4A4640'; var fSt=String(st.fps);
-      for(var k=0;k<fSt.length;k++) digit(cx, 10+k*10, H-20, 7, 12, 2, +fSt[k]); }
+    // (Madblur's dim fps meter, bottom-left, is left out: Tim, 2026-10-16)
   }
   return { st:st, serve:serve, step:step, draw:draw };
 }

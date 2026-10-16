@@ -53,7 +53,8 @@ exists to get a useful tool to the people who saw those tools on X, and to point
   Hold frame, Speed fit, Match cut, Fade through, demo clips, the "Made by…" footer, the
   explanatory hints under the clip and the method, the timeline's Zoom and Quality menus (the
   preview always fits, at full quality), the Export tab's summary and status text (progress and
-  time left show under Pong's bar; saved / cancelled / failed show as a toast).
+  time left show under Pong's bar; saved / cancelled / failed show as a toast), Pong's fps meter.
+- Exports are named `<clip name>_Madloop.mp4` (PNG: folder or .zip of that name), Tim's call.
 - Desktop first: phones get "works best on a computer" with "Try it anyway".
 - Licence MIT for the code; the names Madloop/Madblur and their artwork stay Tim's.
 
@@ -64,7 +65,7 @@ exists to get a useful tool to the people who saw those tools on X, and to point
 | `index.html` | The page: sidebar (header, tabs, Loop and Export panels), stage, timeline, Pong, About box |
 | `style.css` | Madblur's skin copied rule for rule (top), then Madloop's additions (`MADLOOP` section at the end) |
 | `app.js` | Everything else, in sections: state, loop maths, the blend shader, preview, reading clips, controls, Looping panel, timeline, export, boot |
-| `pong.js` | Madblur's render-screen Pong, unchanged; also defines `$` used by app.js (loads first) |
+| `pong.js` | Madblur's render-screen Pong, without its fps meter; also defines `$` used by app.js (loads first) |
 | `vendor/mediabunny-1.61.0.min.js` | Mediabunny (MPL-2.0), reads and writes MP4/MOV/WebM over WebCodecs. Unmodified; licence beside it |
 | `fonts/` | IBM Plex Mono, Geist, DSEG7, Visitor, each with its licence. See `fonts/README.md` |
 | `assets/loop-stamp.png` | The LOOP stamp from the Figma (512×288, shown stretched to 170×68 in the header and 230×92 in About, rotated −15.67°, as designed) |

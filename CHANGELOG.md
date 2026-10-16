@@ -2,6 +2,11 @@
 
 One entry per build, newest first. Builds are numbered upwards, as Madblur's are.
 
+## Build 7 — 2026-10-16
+
+- Exports are named after the clip with `_Madloop` added: `IMG_1164.MOV` → `IMG_1164_Madloop.mp4` (PNG: a `IMG_1164_Madloop` folder or .zip). Only characters a file name can't hold are replaced.
+- Pong: the frame-rate meter in the corner is gone.
+
 ## Build 6 — 2026-10-16
 
 - Export tab: the summary and status text are gone. Progress and time left show under the render screen's bar; saved, cancelled and failed show as a notice.

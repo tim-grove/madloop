@@ -16,7 +16,7 @@
 
 // The build number, ascending, as Madblur does it. Raise it on every build, together with the three
 // ?v= tags in index.html (CLAUDE.md, "Releasing"), and add the build to CHANGELOG.md.
-const BUILD = 6, BUILD_DATE = '2026-10-16';
+const BUILD = 7, BUILD_DATE = '2026-10-16';
 // The About screen's links. An empty one shows greyed out until it is filled in.
 const LINKS = {
   github:    'https://github.com/tim-grove/madloop',
@@ -1013,12 +1013,15 @@ function exportInfo(){
   const n=$('#expN'); if(n) n.textContent=frameCount();
   expLock(_exporting);
 }
-function baseName(){ return (clip.name.replace(/\.[^.]+$/,'')||'clip').replace(/[^\w\- ]+/g,'').slice(0,60)+'_loop'; }
+// Exports are named after the clip: "IMG_1164.MOV" → "IMG_1164_Madloop.mp4" (Tim). Only characters a
+// file name can't hold are swapped out.
+function baseName(){ const b=clip.name.replace(/\.[^.]+$/,'').replace(/[\/\\:*?"<>|\x00-\x1f]+/g,'_').replace(/^[.\s]+|[.\s]+$/g,'');
+  return (b||'clip')+'_Madloop'; }
 async function runExport(kind){
   if(!clip || _exporting) return;
   const N=frameCount(), fps=doc.fps, {W,H,scaled}=exportSize();
   const isVid = kind==='h264' || kind==='h265';
-  const name = baseName()+'_'+W+'x'+H+(isVid ? (kind==='h265'?'_h265':'')+'.mp4' : '_'+N+'f');
+  const name = baseName()+(isVid ? '.mp4' : '');   // PNG: the folder's name, or the .zip's
   // where it goes: picked first, so a cancelled picker costs nothing
   let fileHandle=null, writable=null, dir=null;
   _exporting=true; _exportCancel=false;
